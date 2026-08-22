@@ -1,49 +1,50 @@
-/* Common Strategy identity layer
-   Typography: Newsreader / Unbounded / Azeret Mono
-   Mark: open common-pool ring + ascending accumulation steps */
+/* Common Strategy identity — deliberately unlike the previous editorial/dashboard skin.
+   Display: Unbounded / editorial copy: Newsreader / data: Azeret Mono.
+   Mark: open common-pool C + ascending strategy staircase. */
 
-::selection{background:#c7ff69;color:#07110c}
+::selection{background:#c7ff69;color:#06100b}
 
 .cs-app{
-  font-family:var(--font-editorial),Georgia,serif;
-  font-optical-sizing:auto;
+  --font-display:var(--font-brand),Arial,sans-serif;
+  --font-editorial-copy:var(--font-editorial),Georgia,serif;
   --font-data:var(--font-mono),ui-monospace,SFMono-Regular,Menlo,monospace;
-  --font-mark:var(--font-brand),Arial,sans-serif;
+  font-family:var(--font-editorial-copy);
+  font-optical-sizing:auto;
 }
 
-/* Identity lockup */
+/* ---------- MARK / LOCKUP ---------- */
 .brand{
   display:inline-flex!important;
   align-items:center!important;
-  gap:10px!important;
+  gap:12px!important;
   width:max-content;
   color:var(--white);
-  font-family:var(--font-mark)!important;
+  font-family:var(--font-display)!important;
   font-size:10px!important;
-  font-weight:500!important;
+  font-weight:600!important;
   line-height:1!important;
-  letter-spacing:-.065em!important;
+  letter-spacing:-.075em!important;
   text-transform:uppercase;
   white-space:nowrap;
 }
 .brand::before{
   content:"";
-  width:31px;
-  height:31px;
-  flex:0 0 31px;
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
   display:block;
   background-repeat:no-repeat;
   background-position:center;
   background-size:contain;
-  background-image:url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M48 15C43.6 10.7 37.6 8 31 8C18.3 8 8 18.3 8 31C8 43.7 18.3 54 31 54C37.7 54 43.7 51.1 47.9 46.5' stroke='%23C7FF69' stroke-width='5.5' stroke-linecap='square'/%3E%3Cpath d='M18.5 40H27V31.5H35.5V23H46' stroke='%23F3F0E7' stroke-width='5.5' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
-  filter:drop-shadow(0 0 10px rgba(199,255,105,.08));
-  transition:transform .5s cubic-bezier(.16,.84,.2,1),filter .35s ease;
+  background-image:url("data:image/svg+xml,%3Csvg width='96' height='96' viewBox='0 0 96 96' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M74 19C66.7 11.5 56.6 7 45.5 7C24.8 7 8 24.7 8 46.5C8 68.3 24.8 86 45.5 86C57 86 67.3 81.2 74.5 73.2' stroke='%23C7FF69' stroke-width='7' stroke-linecap='square'/%3E%3Cpath d='M24 64H39V50H54V36H73' stroke='%23F3F0E7' stroke-width='7' stroke-linecap='square' stroke-linejoin='miter'/%3E%3Ccircle cx='75' cy='19' r='4.5' fill='%23C7FF69'/%3E%3C/svg%3E");
+  filter:drop-shadow(0 0 12px rgba(199,255,105,.14));
+  transition:transform .55s cubic-bezier(.16,.84,.2,1),filter .35s ease;
 }
-.brand:hover::before{transform:rotate(-8deg) scale(1.06);filter:drop-shadow(0 0 16px rgba(199,255,105,.22))}
-.brand span{color:var(--acid)!important;font-weight:400;letter-spacing:-.075em}
+.brand:hover::before{transform:rotate(-11deg) scale(1.08);filter:drop-shadow(0 0 22px rgba(199,255,105,.3))}
+.brand span{color:var(--acid)!important;font-weight:400;letter-spacing:-.085em}
 .brand small{
-  margin-left:4px!important;
-  color:#617067!important;
+  margin-left:5px!important;
+  color:#627067!important;
   font-family:var(--font-data)!important;
   font-size:6px!important;
   font-weight:400!important;
@@ -51,157 +52,188 @@
   text-transform:none;
 }
 .cs-footer>.brand{font-size:9px!important}
-.cs-footer>.brand::before{width:27px;height:27px;flex-basis:27px}
+.cs-footer>.brand::before{width:31px;height:31px;flex-basis:31px}
 
-/* Editorial display voice */
-.opening-title h1,
-.opening-thesis p,
-.rank-lockup b,
-.thesis-copy h2,
-.ownership-copy h2,
-.constellation-core-value,
-.quote-head h2,
-.ledger-head h2,
-.pledge-scene blockquote,
-.waiting-stage h1{
-  font-family:var(--font-editorial),Georgia,serif!important;
-  font-optical-sizing:auto;
-  font-kerning:normal;
-  text-rendering:geometricPrecision;
-}
-.opening-title h1{
-  font-weight:300!important;
-  line-height:.665!important;
-  letter-spacing:-.072em!important;
-}
-.opening-title h1 span{font-weight:500;letter-spacing:-.082em}
-.opening-title h1 em{font-weight:300;letter-spacing:-.065em}
-.opening-thesis p{font-weight:400!important;line-height:1.03!important;letter-spacing:-.025em}
-.rank-lockup b{font-weight:400!important;letter-spacing:-.05em}
-.thesis-copy h2,.quote-head h2,.ledger-head h2{font-weight:350!important;letter-spacing:-.065em!important}
-.ownership-copy h2{font-weight:300!important;letter-spacing:-.075em!important}
-.pledge-scene blockquote{font-weight:350!important;letter-spacing:-.052em!important}
-
-/* A harder typographic counterpoint for authored labels */
-.thesis-grid h3,
-.event-flash>p{
-  font-family:var(--font-mark)!important;
-  font-weight:500!important;
-  letter-spacing:-.055em!important;
-  text-transform:uppercase;
-}
-.thesis-grid h3{font-size:11px!important}
-
-/* Data voice — one consistent engineered family throughout */
-.topline nav,
-.live-status,
-.market-rail,
-.opening-index span,
-.opening-index small,
-.eyebrow,
-.opening-thesis a,
-.data-kicker,
-.score-lockup strong,
-.motion-chip,
-.rank-lockup>span,
-.metric-row span,
-.metric-row b,
-.history-ribbon,
-.opening-tape,
-.scroll-cue,
-.section-number,
-.thesis-copy>p,
-.thesis-grid span,
-.thesis-grid p,
-.ownership-copy>.reveal>p,
-.ownership-copy h2 small,
-.ownership-rule,
-.constellation-core-title,
-.owner-node text,
-.ownership-bar span,
-.ownership-bar b,
-.ownership-bar>p,
-.quote-head p,
-.quote-form label>span,
-.quote-form input,
-.quote-form button,
-.quote-output span,
-.quote-output small,
-.quote-output strong,
-.quote-output>a,
-.quote-error,
-.sync-dot,
-.ledger-head>div:last-child p,
-.ledger-columns,
-.ledger-list time,
-.ledger-list span,
-.ledger-list em,
-.ledger-list b,
-.ledger-empty,
-.pledge-scene .reveal>p,
-.pledge-metrics span,
-.pledge-scene>small,
-.cs-footer,
-.event-flash>span,
-.event-flash>small,
-.event-flash>strong,
-.event-flash>b,
-.data-error,
-.waiting-stage>p,
-.waiting-stage>span{
-  font-family:var(--font-data)!important;
-}
-
-/* Replace the generic startup-serif rhythm with a deliberate editorial cadence */
-.thesis-grid p,
-.ledger-head>div:last-child p,
-.pledge-scene>small{
-  line-height:1.78!important;
-}
-.eyebrow,.section-number,.data-kicker,.live-status,.sync-dot{letter-spacing:.145em!important}
-
-/* Wordmark repetition becomes a recognizable motif rather than plain text */
-.opening-title::after{
-  content:"CS / COMMON POOL / 100% VOUCHER OWNED";
-  position:absolute;
-  left:0;
-  bottom:-34px;
-  color:#516057;
-  font-family:var(--font-data);
-  font-size:5.5px;
-  letter-spacing:.18em;
-  white-space:nowrap;
-}
-
-/* Subtle display rule: no rounded-card vocabulary, geometry stays editorial */
-.motion-chip{border-radius:0!important;padding:6px 7px!important}
-.quote-form button{border-radius:0!important}
-
-/* Mark-led opening details */
-.opening-title:before{
+/* Hero-scale identity object. This is intentionally impossible to miss. */
+.opening-title{padding-top:clamp(96px,10vw,150px)!important;isolation:isolate}
+.opening-title::before{
   content:"";
   position:absolute;
-  width:46px;
-  height:46px;
-  right:3%;
-  top:-7%;
-  opacity:.16;
+  left:0;
+  top:clamp(-8px,1vw,16px);
+  width:clamp(92px,9vw,150px);
+  aspect-ratio:1;
   background-repeat:no-repeat;
+  background-position:center;
   background-size:contain;
-  background-image:url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M48 15C43.6 10.7 37.6 8 31 8C18.3 8 8 18.3 8 31C8 43.7 18.3 54 31 54C37.7 54 43.7 51.1 47.9 46.5' stroke='%23C7FF69' stroke-width='5.5' stroke-linecap='square'/%3E%3Cpath d='M18.5 40H27V31.5H35.5V23H46' stroke='%23F3F0E7' stroke-width='5.5' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
-  animation:identityDrift 8s ease-in-out infinite alternate;
+  background-image:url("data:image/svg+xml,%3Csvg width='96' height='96' viewBox='0 0 96 96' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M74 19C66.7 11.5 56.6 7 45.5 7C24.8 7 8 24.7 8 46.5C8 68.3 24.8 86 45.5 86C57 86 67.3 81.2 74.5 73.2' stroke='%23C7FF69' stroke-width='5.5' stroke-linecap='square'/%3E%3Cpath d='M24 64H39V50H54V36H73' stroke='%23F3F0E7' stroke-width='5.5' stroke-linecap='square' stroke-linejoin='miter'/%3E%3Ccircle cx='75' cy='19' r='4' fill='%23C7FF69'/%3E%3C/svg%3E");
+  filter:drop-shadow(0 0 40px rgba(199,255,105,.16));
+  animation:heroMarkFloat 7s ease-in-out infinite alternate;
+  z-index:-1;
 }
-@keyframes identityDrift{to{transform:translateY(8px) rotate(8deg);opacity:.28}}
+.opening-title::after{
+  content:"CS / 001";
+  position:absolute;
+  top:clamp(30px,4.5vw,70px);
+  left:clamp(112px,11vw,184px);
+  color:#6e7d74;
+  font:500 7px/1 var(--font-data);
+  letter-spacing:.18em;
+  writing-mode:vertical-rl;
+  transform:rotate(180deg);
+}
+@keyframes heroMarkFloat{to{transform:translate3d(0,-9px,0) rotate(-4deg);filter:drop-shadow(0 0 62px rgba(199,255,105,.24))}}
+
+/* ---------- DISPLAY TYPOGRAPHY ---------- */
+.opening-title h1,
+.thesis-copy h2,
+.ownership-copy h2,
+.quote-head h2,
+.ledger-head h2,
+.waiting-stage h1{
+  font-family:var(--font-display)!important;
+  font-style:normal!important;
+  text-transform:uppercase;
+  font-weight:500!important;
+  text-rendering:geometricPrecision;
+  font-kerning:normal;
+}
+
+.opening-title h1{
+  margin-top:8px!important;
+  font-size:clamp(68px,8.8vw,154px)!important;
+  line-height:.78!important;
+  letter-spacing:-.09em!important;
+  max-width:7.4em;
+}
+.opening-title h1 span{
+  display:block;
+  color:transparent!important;
+  -webkit-text-stroke:1.25px rgba(243,240,231,.9);
+  font-weight:400!important;
+  letter-spacing:-.075em!important;
+}
+.opening-title h1 em{
+  display:block;
+  margin:0!important;
+  color:var(--acid)!important;
+  font-style:normal!important;
+  font-weight:600!important;
+  letter-spacing:-.105em!important;
+  transform:translateX(clamp(20px,3vw,56px));
+  text-shadow:0 0 55px rgba(199,255,105,.08);
+}
+.opening-thesis p{
+  font-family:var(--font-editorial-copy)!important;
+  font-style:italic;
+  font-weight:400!important;
+  line-height:1.03!important;
+  letter-spacing:-.035em!important;
+  font-size:clamp(22px,1.75vw,31px)!important;
+}
+
+.thesis-copy h2,
+.quote-head h2,
+.ledger-head h2{
+  font-weight:500!important;
+  line-height:.82!important;
+  letter-spacing:-.075em!important;
+}
+.thesis-copy h2 em,
+.quote-head h2 em,
+.ledger-head h2 em{
+  font-style:normal!important;
+  color:inherit!important;
+  -webkit-text-stroke:1px currentColor;
+  opacity:.95;
+}
+.thesis-copy h2 em{color:#416d2a!important}
+.quote-head h2 em,.ledger-head h2 em{color:var(--acid)!important}
+.ownership-copy h2{
+  font-weight:600!important;
+  letter-spacing:-.095em!important;
+  line-height:.74!important;
+}
+.rank-lockup b,.constellation-core-value,.pledge-scene blockquote{
+  font-family:var(--font-editorial-copy)!important;
+  font-optical-sizing:auto;
+}
+.rank-lockup b{font-weight:500!important;font-style:italic;letter-spacing:-.055em}
+.pledge-scene blockquote{font-weight:350!important;letter-spacing:-.052em!important}
+.pledge-scene blockquote em{font-style:italic!important}
+
+/* Signature section initials — creates a repeating identity motif through the scroll. */
+.thesis::before,.ownership-scene::before,.quote-scene::before,.ledger-scene::before,.pledge-scene::before{
+  position:absolute;
+  right:clamp(20px,4vw,72px);
+  top:clamp(24px,4vw,64px);
+  font:500 clamp(38px,5vw,82px)/1 var(--font-display);
+  letter-spacing:-.12em;
+  opacity:.035;
+  pointer-events:none;
+}
+.thesis::before{content:"C/02"}.ownership-scene::before{content:"S/03"}.quote-scene::before{content:"C/04"}.ledger-scene::before{content:"S/05"}.pledge-scene::before{content:"C/06"}
+
+/* ---------- DATA / INTERFACE VOICE ---------- */
+.topline nav,.live-status,.market-rail,.opening-index span,.opening-index small,.eyebrow,.opening-thesis a,
+.data-kicker,.score-lockup strong,.motion-chip,.rank-lockup>span,.metric-row span,.metric-row b,.history-ribbon,
+.opening-tape,.scroll-cue,.section-number,.thesis-copy>p,.thesis-grid span,.ownership-copy>.reveal>p,
+.ownership-copy h2 small,.ownership-rule,.constellation-core-title,.owner-node text,.ownership-bar,
+.quote-head p,.quote-form,.quote-output,.quote-error,.ledger-head .sync-dot,.ledger-head>div:last-child p,
+.ledger-columns,.ledger-list,.pledge-scene .section-number,.pledge-scene .reveal>p,.pledge-metrics,
+.pledge-scene>small,.cs-footer,.event-flash,.data-error,.waiting-stage>p,.waiting-stage>span{
+  font-family:var(--font-data)!important;
+}
+.score-lockup strong,.quote-output strong{font-variant-numeric:tabular-nums slashed-zero}
+
+/* Body copy is intentionally editorial rather than "dashboard sans". */
+.thesis-grid p,.ledger-head>div:last-child p,.pledge-scene blockquote{
+  font-family:var(--font-editorial-copy)!important;
+}
+.thesis-grid h3,.event-flash>p{
+  font-family:var(--font-display)!important;
+  font-weight:600!important;
+  letter-spacing:-.07em!important;
+  text-transform:uppercase;
+}
+.thesis-grid h3{font-size:10px!important}
+
+/* ---------- BRAND-SPECIFIC DETAILS ---------- */
+.eyebrow{letter-spacing:.22em!important;color:#98a39c!important}
+.opening-thesis a{border-radius:0!important;clip-path:polygon(0 0,96% 0,100% 26%,100% 100%,4% 100%,0 74%)}
+.motion-chip{border-radius:0!important;clip-path:polygon(0 0,92% 0,100% 30%,100% 100%,8% 100%,0 70%)}
+.live-status{position:relative;padding-left:14px}
+.live-status::before{content:"";position:absolute;left:0;top:50%;width:7px;height:1px;background:var(--acid);box-shadow:0 0 10px rgba(199,255,105,.6)}
+
+/* A giant ghost mark sits behind the opening data column. */
+.opening-data::after{
+  content:"";
+  position:absolute;
+  right:-8%;
+  bottom:-6%;
+  width:clamp(180px,22vw,390px);
+  aspect-ratio:1;
+  opacity:.035;
+  pointer-events:none;
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:contain;
+  background-image:url("data:image/svg+xml,%3Csvg width='96' height='96' viewBox='0 0 96 96' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M74 19C66.7 11.5 56.6 7 45.5 7C24.8 7 8 24.7 8 46.5C8 68.3 24.8 86 45.5 86C57 86 67.3 81.2 74.5 73.2' stroke='%23C7FF69' stroke-width='5'/%3E%3Cpath d='M24 64H39V50H54V36H73' stroke='%23F3F0E7' stroke-width='5'/%3E%3C/svg%3E");
+}
 
 @media(max-width:860px){
-  .brand{font-size:8px!important;gap:8px!important}
-  .brand::before{width:27px;height:27px;flex-basis:27px}
-  .opening-title::after{bottom:-26px;font-size:5px}
-  .opening-title:before{display:none}
+  .opening-title{padding-top:120px!important}
+  .opening-title::before{width:105px;top:8px}
+  .opening-title::after{top:34px;left:125px}
+  .opening-title h1{font-size:clamp(62px,16vw,126px)!important;line-height:.8!important}
+  .opening-title h1 em{transform:translateX(18px)}
 }
 @media(max-width:600px){
-  .brand{font-size:7px!important;letter-spacing:-.055em!important}
-  .brand::before{width:24px;height:24px;flex-basis:24px}
-  .opening-title h1{letter-spacing:-.065em!important}
-  .opening-title::after{display:none}
+  .brand::before{width:31px;height:31px;flex-basis:31px}
+  .opening-title{padding-top:104px!important}
+  .opening-title::before{width:86px;top:5px}
+  .opening-title::after{left:102px;top:28px;font-size:5px}
+  .opening-title h1{font-size:17vw!important}
+  .opening-thesis p{font-size:22px!important}
 }
+@media(prefers-reduced-motion:reduce){.opening-title::before{animation:none!important}}
