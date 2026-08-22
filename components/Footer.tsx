@@ -1,1 +1,1 @@
-export function Footer(){return <footer><span>COMMONS OPTIMAL®</span><span>Strategy, not certainty.</span><a href="https://x.com/intent/post?text=Hey%20%40commonsmade%2C%20I%20vouch%20for%20%40Cyphrgm" target="_blank" rel="noreferrer">Built by @Cyphrgm · Vouch creator ↗</a></footer>}
+export function Footer(){return <footer><span>COMMONS GTO</span><span>BUILT BY @CYPHRGM</span><a href="https://x.com/intent/post?text=Hey%20%40commonsmade%2C%20I%20vouch%20for%20%40Cyphrgm" target="_blank" rel="noreferrer">VOUCH @CYPHRGM ↗</a></footer>}
