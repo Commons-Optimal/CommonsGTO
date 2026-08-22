@@ -1,6 +1,6 @@
 import 'server-only';
 import { GAME } from './config';
-import type { CommonsSnapshot, Participant } from './types';
+import type { CommonsLedger, CommonsLedgerEntry, CommonsSnapshot, Participant } from './types';
 import { recordSnapshot } from './history';
 
 export class CommonsDataError extends Error {}
@@ -51,12 +51,38 @@ type EventResponse = {
   };
 };
 
+type RawLedgerEntry = {
+  kind?: string;
+  author_x_id?: string;
+  author_handle?: string;
+  author_avatar_url?: string;
+  points?: number;
+  quote?: string;
+  tweet_text?: string;
+  tweet_id?: string;
+  tweet_url?: string;
+  tweet_created_at?: string;
+};
+
+type RawLedgerResponse = {
+  user_id?: string;
+  display?: string;
+  x_handle?: string;
+  github_handle?: string | null;
+  rank?: number;
+  entries?: RawLedgerEntry[];
+  vouch_total?: number;
+  slash_total?: number;
+  reputation_points?: number;
+  total_points?: number;
+};
+
 const API_BASE = 'https://api.commonsmade.com';
 const EVENT = 'genesis';
 const PAGE_SIZE = 500;
-// 5,000 rows is enough to cover the cutoff and a deep pool of realistic counterparties.
-// A requested user outside this window is added through the official search endpoint.
 const MARKET_ROWS = 5000;
+const MAX_DIRECT_SUPPORTERS = 12;
+const MAX_WARM_SEARCHES = 20;
 
 async function commonsFetch<T>(path: string, revalidate: number = GAME.cacheSeconds): Promise<T> {
   let response: Response;
@@ -81,6 +107,14 @@ async function commonsFetch<T>(path: string, revalidate: number = GAME.cacheSeco
   }
 }
 
+async function safeCommonsFetch<T>(path: string, revalidate: number = GAME.cacheSeconds): Promise<T | undefined> {
+  try {
+    return await commonsFetch<T>(path, revalidate);
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeEntry(entry: CommonsEntry): Participant | null {
   const username = entry.x_handle?.replace(/^@/, '').trim();
   if (!username || !Number.isFinite(entry.base_points) || !Number.isFinite(entry.total_points) || !Number.isFinite(entry.rank)) {
@@ -99,6 +133,42 @@ function normalizeEntry(entry: CommonsEntry): Participant | null {
     totalScore: entry.total_points,
     rank: entry.rank,
   };
+}
+
+function normalizeLedger(raw: RawLedgerResponse | undefined): CommonsLedger | undefined {
+  if (!raw?.x_handle) return undefined;
+  const entries: CommonsLedgerEntry[] = (raw.entries ?? []).flatMap(entry => {
+    if ((entry.kind !== 'vouch' && entry.kind !== 'slash') || !entry.author_handle || !Number.isFinite(entry.points)) return [];
+    return [{
+      kind: entry.kind,
+      authorXId: entry.author_x_id,
+      authorHandle: entry.author_handle.replace(/^@/, ''),
+      authorAvatarUrl: entry.author_avatar_url,
+      points: Number(entry.points),
+      quote: entry.quote,
+      tweetText: entry.tweet_text,
+      tweetId: entry.tweet_id,
+      tweetUrl: entry.tweet_url,
+      tweetCreatedAt: entry.tweet_created_at,
+    }];
+  });
+
+  return {
+    userId: raw.user_id,
+    display: raw.display,
+    xHandle: raw.x_handle.replace(/^@/, ''),
+    githubHandle: raw.github_handle ?? undefined,
+    rank: raw.rank,
+    entries,
+    vouchTotal: Number(raw.vouch_total ?? 0),
+    slashTotal: Number(raw.slash_total ?? 0),
+    reputationPoints: Number(raw.reputation_points ?? 0),
+    totalPoints: Number(raw.total_points ?? 0),
+  };
+}
+
+function ledgerUrl(handle: string, boardVersion: number) {
+  return `/game/events/${EVENT}/targets/${encodeURIComponent(handle)}/ledger?board_version=${boardVersion}`;
 }
 
 export async function getCommonsSnapshot(requestedUsername?: string): Promise<CommonsSnapshot> {
@@ -122,9 +192,10 @@ export async function getCommonsSnapshot(requestedUsername?: string): Promise<Co
     ),
   );
 
-  const searchRequest = requestedUsername
+  const cleanRequested = requestedUsername?.replace(/^@/, '').trim();
+  const searchRequest = cleanRequested
     ? commonsFetch<SearchResponse>(
-        `/game/events/${EVENT}/leaderboard/search?board_version=${boardVersion}&q=${encodeURIComponent(requestedUsername.replace(/^@/, ''))}&limit=30`,
+        `/game/events/${EVENT}/leaderboard/search?board_version=${boardVersion}&q=${encodeURIComponent(cleanRequested)}&limit=30`,
         30,
       )
     : Promise.resolve<SearchResponse | null>(null);
@@ -150,6 +221,68 @@ export async function getCommonsSnapshot(requestedUsername?: string): Promise<Co
     }
   }
 
+  let userLedger: CommonsLedger | undefined;
+  const supporterLedgers: Record<string, CommonsLedger> = {};
+
+  if (cleanRequested) {
+    const requestedParticipant = Array.from(participantMap.values()).find(
+      participant => participant.username.toLowerCase() === cleanRequested.toLowerCase(),
+    );
+    const canonicalHandle = requestedParticipant?.username ?? cleanRequested;
+    userLedger = normalizeLedger(await safeCommonsFetch<RawLedgerResponse>(ledgerUrl(canonicalHandle, boardVersion), 30));
+
+    if (userLedger) {
+      const directSupporters = userLedger.entries
+        .filter(entry => entry.kind === 'vouch' && entry.points > 0)
+        .sort((a, b) => b.points - a.points)
+        .filter((entry, index, arr) => arr.findIndex(other => other.authorHandle.toLowerCase() === entry.authorHandle.toLowerCase()) === index)
+        .slice(0, MAX_DIRECT_SUPPORTERS);
+
+      const ledgers = await Promise.all(
+        directSupporters.map(async supporter => ({
+          handle: supporter.authorHandle,
+          ledger: normalizeLedger(await safeCommonsFetch<RawLedgerResponse>(ledgerUrl(supporter.authorHandle, boardVersion), 30)),
+        })),
+      );
+
+      for (const item of ledgers) {
+        if (item.ledger) supporterLedgers[item.handle.toLowerCase()] = item.ledger;
+      }
+
+      // Enrich the strongest second-degree accounts that are not already in our 5k market window.
+      const observedWarmPower = new Map<string, { handle: string; power: number }>();
+      for (const ledger of Object.values(supporterLedgers)) {
+        for (const entry of ledger.entries) {
+          if (entry.kind !== 'vouch' || entry.points <= 0) continue;
+          const key = entry.authorHandle.toLowerCase();
+          const existing = observedWarmPower.get(key);
+          if (!existing || entry.points > existing.power) observedWarmPower.set(key, { handle: entry.authorHandle, power: entry.points });
+        }
+      }
+
+      const directSet = new Set(directSupporters.map(entry => entry.authorHandle.toLowerCase()));
+      const missingWarm = Array.from(observedWarmPower.values())
+        .filter(item => !participantMap.has(item.handle.toLowerCase()))
+        .filter(item => item.handle.toLowerCase() !== canonicalHandle.toLowerCase() && !directSet.has(item.handle.toLowerCase()))
+        .sort((a, b) => b.power - a.power)
+        .slice(0, MAX_WARM_SEARCHES);
+
+      const warmSearches = await Promise.all(
+        missingWarm.map(item => safeCommonsFetch<SearchResponse>(
+          `/game/events/${EVENT}/leaderboard/search?board_version=${boardVersion}&q=${encodeURIComponent(item.handle)}&limit=5`,
+          30,
+        )),
+      );
+
+      for (const result of warmSearches) {
+        for (const raw of result?.entries ?? []) {
+          const participant = normalizeEntry(raw);
+          if (participant) participantMap.set(participant.username.toLowerCase(), participant);
+        }
+      }
+    }
+  }
+
   const participants = Array.from(participantMap.values()).sort((a, b) => a.rank - b.rank);
   if (!participants.length) throw new CommonsDataError('The Commons response contained no valid participants.');
 
@@ -170,9 +303,11 @@ export async function getCommonsSnapshot(requestedUsername?: string): Promise<Co
     nextSupplyAt: supply?.next_increase?.at,
     nextVouchLimit: supply?.next_increase?.total_vouches,
     nextSlashLimit: supply?.next_increase?.total_slashes,
-    upstreamUpdatedAt: supply?.resolved_at,
+    upstreamUpdatedAt: undefined,
     fetchedAt,
     source: 'api.commonsmade.com',
+    userLedger,
+    supporterLedgers: Object.keys(supporterLedgers).length ? supporterLedgers : undefined,
   };
 
   await recordSnapshot(snapshot);
