@@ -171,6 +171,12 @@ function ledgerUrl(handle: string, boardVersion: number) {
   return `/game/events/${EVENT}/targets/${encodeURIComponent(handle)}/ledger?board_version=${boardVersion}`;
 }
 
+export async function getPublicLedger(handle: string): Promise<CommonsLedger | undefined> {
+  const version = await safeCommonsFetch<VersionResponse>(`/game/events/${EVENT}/leaderboard/version`, 10);
+  if (!version) return undefined;
+  return normalizeLedger(await safeCommonsFetch<RawLedgerResponse>(ledgerUrl(handle.replace(/^@/, ''), version.board_version), 10));
+}
+
 export async function getCommonsSnapshot(requestedUsername?: string): Promise<CommonsSnapshot> {
   const fetchedAt = new Date().toISOString();
 
@@ -249,7 +255,6 @@ export async function getCommonsSnapshot(requestedUsername?: string): Promise<Co
         if (item.ledger) supporterLedgers[item.handle.toLowerCase()] = item.ledger;
       }
 
-      // Enrich the strongest second-degree accounts that are not already in our 5k market window.
       const observedWarmPower = new Map<string, { handle: string; power: number }>();
       for (const ledger of Object.values(supporterLedgers)) {
         for (const entry of ledger.entries) {
@@ -287,9 +292,7 @@ export async function getCommonsSnapshot(requestedUsername?: string): Promise<Co
   if (!participants.length) throw new CommonsDataError('The Commons response contained no valid participants.');
 
   const cutoffParticipant = participants.find(participant => participant.rank === GAME.targetRank);
-  if (!cutoffParticipant) {
-    throw new CommonsDataError('The live snapshot did not include rank 1000.');
-  }
+  if (!cutoffParticipant) throw new CommonsDataError('The live snapshot did not include rank 1000.');
 
   const supply = event.rules?.supply;
   const snapshot: CommonsSnapshot = {
