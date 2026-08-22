@@ -1,0 +1,37 @@
+name: Commons API Probe
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe public Commons API
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/api-probe
+          base='https://api.commonsmade.com'
+          ua='Mozilla/5.0'
+          curl -L --compressed -A "$ua" -sS "$base/game/events/genesis" -o /tmp/api-probe/event.json
+          curl -L --compressed -A "$ua" -sS "$base/game/events/genesis/leaderboard/version" -o /tmp/api-probe/version.json
+          curl -L --compressed -A "$ua" -sS "$base/game/events/genesis/leaderboard/search?q=CyphrGM&limit=10" -o /tmp/api-probe/search.json
+          for spec in '0 rank1' '499 rank500' '749 rank750' '899 rank900' '999 rank1000' '1099 rank1100' '1249 rank1250'; do
+            set -- $spec
+            curl -L --compressed -A "$ua" -sS "$base/game/events/genesis/leaderboard?offset=$1&limit=1" -o "/tmp/api-probe/$2.json"
+          done
+          uid=$(python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/api-probe/search.json'))
+          print(d['entries'][0]['user_id'])
+          PY
+          )
+          curl -L --compressed -A "$ua" -sS "$base/game/events/genesis/participants/$uid/ledger" -o /tmp/api-probe/cyphrgm-ledger.json
+          curl -L --compressed -A "$ua" -sS "$base/game/events/genesis/targets/CyphrGM/ledger" -o /tmp/api-probe/cyphrgm-target-ledger.json
+          for f in /tmp/api-probe/*; do echo "=== $f ==="; cat "$f"; echo; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commons-api-probe
+          path: /tmp/api-probe

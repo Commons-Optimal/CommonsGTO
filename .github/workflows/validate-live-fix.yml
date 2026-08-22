@@ -1,0 +1,20 @@
+name: Validate Commons Live Fix
+
+on:
+  push:
+    branches: [debug/commons-live-feed]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/official-commons-api
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
