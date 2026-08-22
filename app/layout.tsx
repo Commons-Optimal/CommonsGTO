@@ -25,10 +25,28 @@ const mono = IBM_Plex_Mono({
   weight: ['400', '500', '600'],
 });
 
+const TITLE = 'Common Strategy — 100% Voucher-Owned Commons Treasury';
+const DESCRIPTION =
+  'Vouch games favour whales. So the commons became one. Every vouch owns a pro-rata slice — 100% pledged to vouchers, founder 0.00%.';
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://commonstrat.xyz'),
-  title: 'Common Strategy — 100% Voucher-Owned Commons Treasury',
-  description: 'Vouch games favour whales. Common Strategy pools the commons into one account — 100% of any final allocation is pledged pro rata to the people who vouched @commonstrat.',
+  title: TITLE,
+  description: DESCRIPTION,
+  applicationName: 'Common Strategy',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: 'Common Strategy',
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

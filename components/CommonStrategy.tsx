@@ -117,11 +117,19 @@ function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyS
           {segments.length
             ?segments.map(segment=>{
               const span=segment.share*360*scale;
-              const path=ringSlice(cursor,cursor+span,280,182);
-              cursor+=span+gap;
               const dim=highlight&&segment.key!==highlight;
               const hit=highlight&&segment.key===highlight;
-              return <path key={segment.key} d={path} fill={segment.color} className={`pool-slice ${dim?'is-dim':''} ${hit?'is-you':''}`}><title>{`${segment.label} — ${pct(segment.share)}`}</title></path>;
+              const className=`pool-slice ${dim?'is-dim':''} ${hit?'is-you':''}`;
+              const title=<title>{`${segment.label} — ${pct(segment.share)}`}</title>;
+              // A 360° arc has identical start and end points, which SVG drops
+              // entirely — draw the full ring as a stroked circle instead.
+              if(span>=359.9){
+                cursor+=span+gap;
+                return <circle key={segment.key} cx="320" cy="320" r="231" fill="none" stroke={segment.color} strokeWidth="98" className={className}>{title}</circle>;
+              }
+              const path=ringSlice(cursor,cursor+span,280,182);
+              cursor+=span+gap;
+              return <path key={segment.key} d={path} fill={segment.color} className={className}>{title}</path>;
             })
             :<circle cx="320" cy="320" r="231" className="pool-empty-ring"/>}
         </g>
@@ -260,7 +268,7 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
           <div><span>OWNERS</span><b>{state?nf.format(state.voucherCount):'0'}</b></div>
           <div><span>VOUCH POOL</span><b>{state?nf.format(state.positiveVouchPoints):'—'}</b></div>
           <div><span>PLEDGED</span><b className="acid">100%</b></div>
-          <div><span>TIME LEFT</span><b>{countdown.known?`${countdown.days}D ${countdown.hours}H ${countdown.minutes}M`:'TBC'}</b></div>
+          <div><span>TIME LEFT</span><b>{countdown.closed?'CLOSED':countdown.known?`${countdown.days}D ${countdown.hours}H ${countdown.minutes}M`:'TBC'}</b></div>
         </div>
         <div className="rail-note">OUTER RING = TIME LEFT{countdown.remainFrac!==null?` (${Math.round(countdown.remainFrac*100)}%)`:''}<br/>INNER SLICES = SHARE OF THE VOUCH POOL</div>
       </aside>
