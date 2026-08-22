@@ -146,14 +146,15 @@ function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyS
   </div>;
 }
 
-function Ticker({state,countdown}:{state?:StrategyState;countdown:CountdownParts}){
-  const clock=countdown.known?`${countdown.days} : ${countdown.hours} : ${countdown.minutes} : ${countdown.seconds}`:'TBC';
-  const base:{k:string;v:string;up?:boolean}[]=state
-    ?[{k:'THE POOL',v:`${nf.format(state.positiveVouchPoints)} PTS`,up:true},{k:countdown.closed?'STATUS':'CLOSES IN',v:countdown.closed?'CLOSED':clock,up:true},{k:'OWNERS',v:String(state.voucherCount)}]
-    :[{k:'STATUS',v:'AWAITING INDEX'},{k:countdown.closed?'STATUS':'CLOSES IN',v:countdown.closed?'CLOSED':clock}];
-  const vouches=state?.tape.filter(entry=>entry.kind==='vouch').slice(0,12).map(entry=>({k:`@${entry.handle} VOUCHED`,v:`+${compact(entry.points)}`,up:true}))??[];
-  const items=[...base,...vouches];
-  const track=(hidden:boolean)=><div className="ticker-set" aria-hidden={hidden||undefined}>{items.map((item,i)=><span key={`${item.k}-${i}`} className={item.up?'up':''}><small>{item.k}</small><b>{item.v}</b></span>)}</div>;
+function Ticker({state}:{state?:StrategyState}){
+  const vouches=state?.tape.filter(entry=>entry.kind==='vouch').slice(0,14)??[];
+  const items=vouches.length
+    ?vouches.map(entry=>({k:`@${entry.handle} VOUCHED`,v:`+${compact(entry.points)}`}))
+    :[{k:'THE POOL IS OPEN',v:'THE FIRST VOUCH OWNS 100%'},{k:'VOUCH @COMMONSTRAT',v:'+35% OF YOUR BASE SCORE'}];
+  // Repeat the set so each half of the tape is wider than any viewport — a
+  // sparse tape otherwise leaves the band blank on ultrawide screens.
+  const filled=Array.from({length:Math.max(1,Math.ceil(16/items.length))},()=>items).flat();
+  const track=(hidden:boolean)=><div className="ticker-set" aria-hidden={hidden||undefined}>{filled.map((item,i)=><span key={i} className="up"><small>{item.k}</small><b>{item.v}</b></span>)}</div>;
   return <div className="pool-ticker"><div className="pool-ticker-track">{track(false)}{track(true)}</div></div>;
 }
 
@@ -245,7 +246,7 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
       <a className="header-vouch" href={vouchHref} target="_blank" rel="noreferrer">VOUCH @{handle.toUpperCase()} <b aria-hidden="true">&#8599;</b></a>
     </header>
 
-    <Ticker state={state} countdown={countdown}/>
+    <Ticker state={state}/>
 
     <section className="pool-stage" id="pool-stage" aria-label="The pool">
       <aside className="stage-rail rail-left">
