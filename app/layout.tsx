@@ -26,6 +26,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://commonstrat.xyz'),
   title: 'Common Strategy — 100% Voucher-Owned Commons Treasury',
   description: 'Vouch games favour whales. Common Strategy pools the commons into one account — 100% of any final allocation is pledged pro rata to the people who vouched @commonstrat.',
 };
