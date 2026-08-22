@@ -17,7 +17,7 @@ type LedgerResponse = {
 
 const API='https://api.commonsmade.com';
 const EVENT='genesis';
-export const COMMON_STRATEGY_HANDLE=(process.env.COMMON_STRATEGY_HANDLE || 'CommonsStrategy').replace(/^@/,'');
+export const COMMON_STRATEGY_HANDLE=(process.env.COMMON_STRATEGY_HANDLE || 'commonstrat').replace(/^@/,'');
 
 async function commons<T>(path:string):Promise<T>{
   const response=await fetch(`${API}${path}`,{headers:{accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(10_000)});
