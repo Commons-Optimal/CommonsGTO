@@ -1,8 +1,15 @@
 export type Interaction = { from: string; to: string; value?: number; timestamp?: string };
 
 export type Participant = {
+  userId?: string;
   username: string;
+  displayName?: string;
+  githubHandle?: string;
+  avatarUrl?: string;
+  joined?: boolean;
   baseScore: number;
+  reputationScore?: number;
+  multiplier?: number;
   totalScore: number;
   rank: number;
   vouchersUsed?: number;
@@ -16,10 +23,21 @@ export type Participant = {
 export type CommonsSnapshot = {
   participants: Participant[];
   cutoffRank1000: number;
+  rankScores?: Record<number, number>;
+  totalParticipants?: number;
+  totalEntries?: number;
+  boardVersion?: number;
+  vouchLimit?: number;
+  slashLimit?: number;
+  nextSupplyIncreaseAt?: string;
+  nextVouchLimit?: number;
+  nextSlashLimit?: number;
   upstreamUpdatedAt?: string;
   fetchedAt: string;
   source: string;
 };
+
+export type CommonsMeta = Omit<CommonsSnapshot, 'participants'> & { participants?: never };
 
 export type MarketCandidate = Participant & {
   power: number;

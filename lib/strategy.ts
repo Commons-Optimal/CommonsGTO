@@ -22,7 +22,8 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
   }).filter(c => c.available && (c.ourUtility>0 || c.theirUtility>0));
   candidates = candidates.map(c => ({...c,dominated:candidates.some(a => a.username!==c.username && a.power>=c.power && a.theirUtility>=c.theirUtility && a.strategicFit>=c.strategicFit && (a.power>c.power || a.theirUtility>c.theirUtility || a.strategicFit>c.strategicFit))})).sort((a,b)=>b.strategicFit-a.strategicFit || b.power-a.power);
   const actionable = candidates.filter(c=>!c.dominated);
-  const remaining = user.vouchesRemaining ?? Math.max(0, GAME.defaultVouches-(user.vouchersUsed ?? 0));
+  const supply = snapshot.vouchLimit ?? GAME.defaultVouches;
+  const remaining = user.vouchesRemaining ?? Math.max(0, supply-(user.vouchersUsed ?? 0));
   const viableReturns = candidates.filter(c=>c.theirUtility>.35).map(c=>c.power).sort((a,b)=>b-a);
   const reservationValue = viableReturns[Math.min(Math.max(remaining-1,0),viableReturns.length-1)] ?? 0;
   const best = actionable[0];
@@ -30,8 +31,10 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
   const rankAfter = (score:number) => 1 + snapshot.participants.filter(p=>p.totalScore>score).length;
   return {
     user,target,ownPower,need,remaining,reservationValue,candidates,actionable,
+    vouchLimit: supply,
+    slashLimit: snapshot.slashLimit ?? GAME.defaultSlashes,
     whoNeeds: candidates.filter(c=>c.need>0&&c.need<=ownPower).length,
     reciprocal: candidates.filter(c=>c.need>0&&c.need<=ownPower&&c.power>=need).length,
-    decision: hold ? {type:'HOLD' as const,title:'Preserve your optionality',inbound:0,rank:user.rank,margin:user.totalScore-target,candidate:undefined} : {type:'DIRECT' as const,title:`Reciprocal with @${best.username}`,inbound:best.power,rank:rankAfter(user.totalScore+best.power),margin:user.totalScore+best.power-target,candidate:best},
+    decision: hold ? {type:'HOLD' as const,title:'Keep it',inbound:0,rank:user.rank,margin:user.totalScore-target,candidate:undefined} : {type:'DIRECT' as const,title:`Ask @${best.username}`,inbound:best.power,rank:rankAfter(user.totalScore+best.power),margin:user.totalScore+best.power-target,candidate:best},
   };
 }
