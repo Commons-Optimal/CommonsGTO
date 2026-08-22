@@ -23,6 +23,7 @@ export type Participant = {
 export type CommonsSnapshot = {
   participants: Participant[];
   cutoffRank1000: number;
+  rankScores?: Record<number, number>;
   totalParticipants?: number;
   totalEntries?: number;
   boardVersion?: number;
