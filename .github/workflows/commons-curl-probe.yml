@@ -1,0 +1,39 @@
+name: Commons Curl Probe
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch page and bundles
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/commons-probe
+          curl -L --compressed -A 'Mozilla/5.0' -D /tmp/commons-probe/headers.txt 'https://commonsmade.com/vouch' -o /tmp/commons-probe/page.html
+          echo '=== HEADERS ==='
+          cat /tmp/commons-probe/headers.txt
+          echo '=== HTML HEAD ==='
+          head -c 30000 /tmp/commons-probe/page.html || true
+          python3 - <<'PY'
+          import re, pathlib, urllib.parse, subprocess
+          html=pathlib.Path('/tmp/commons-probe/page.html').read_text(errors='ignore')
+          srcs=re.findall(r'<script[^>]+src=["\']([^"\']+)',html)
+          print('\n=== SCRIPTS ===')
+          for i,s in enumerate(srcs):
+              u=urllib.parse.urljoin('https://commonsmade.com/vouch',s)
+              print(u)
+              try:
+                  out=f'/tmp/commons-probe/script-{i}.js'
+                  subprocess.run(['curl','-L','--compressed','-A','Mozilla/5.0',u,'-o',out],check=False)
+              except Exception as e: print(e)
+          PY
+          echo '=== ENDPOINT-LIKE STRINGS ==='
+          grep -RniE 'https?://|supabase|graphql|leaderboard|vouch|slash|api/|fetch\(' /tmp/commons-probe/script-*.js | head -n 1000 || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commons-curl-probe
+          path: /tmp/commons-probe
