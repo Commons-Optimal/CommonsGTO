@@ -5,10 +5,11 @@ import './gto-v3.css';
 import './match.css';
 import './match-home.css';
 import './match-premium.css';
+import './common-strategy.css';
 
 export const metadata: Metadata = {
-  title: 'Commons Match — Vouch / Pass',
-  description: 'Swipe Commons players. A mutual vouch opens the deal.',
+  title: 'Common Strategy — The Commons Treasury Company',
+  description: '100% of any Commons allocation received is pledged pro rata to the accounts that vouched Common Strategy.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
