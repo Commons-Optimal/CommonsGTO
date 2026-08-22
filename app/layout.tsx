@@ -1,36 +1,35 @@
 import type { Metadata } from 'next';
-import { Azeret_Mono, Newsreader, Unbounded } from 'next/font/google';
+import { Bodoni_Moda, IBM_Plex_Mono, Manrope } from 'next/font/google';
 import './globals.css';
 import './common-strategy.css';
-import './common-strategy-identity.css';
 
-const editorial = Newsreader({
+const display = Bodoni_Moda({
   subsets: ['latin'],
-  variable: '--font-editorial',
+  variable: '--font-display',
   display: 'swap',
-  weight: ['300', '400', '500', '600'],
+  weight: ['400', '500', '600'],
   style: ['normal', 'italic'],
 });
 
-const brand = Unbounded({
+const sans = Manrope({
   subsets: ['latin'],
-  variable: '--font-brand',
+  variable: '--font-sans',
+  display: 'swap',
+  weight: ['400', '500', '600', '700'],
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
   display: 'swap',
   weight: ['400', '500', '600'],
 });
 
-const mono = Azeret_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-  display: 'swap',
-  weight: ['300', '400', '500', '600'],
-});
-
 export const metadata: Metadata = {
-  title: 'Common Strategy — The Commons Treasury Company',
-  description: '100% of any Commons allocation received is pledged pro rata to the accounts that vouched @commonstrat.',
+  title: 'Common Strategy — 100% Voucher-Owned Commons Treasury',
+  description: 'A public Commons accumulation vehicle. 100% of any final allocation received is pledged pro rata to the accounts that vouched @commonstrat.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body className={`${editorial.variable} ${brand.variable} ${mono.variable}`}>{children}</body></html>;
+  return <html lang="en"><body className={`${display.variable} ${sans.variable} ${mono.variable}`}>{children}</body></html>;
 }
