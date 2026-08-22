@@ -1,0 +1,25 @@
+name: Commons API Probe
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe public Commons API
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/api-probe
+          base='https://api.commonsmade.com'
+          curl -L --compressed -A 'Mozilla/5.0' -sS -D /tmp/api-probe/event.headers "$base/game/events/genesis" -o /tmp/api-probe/event.json
+          curl -L --compressed -A 'Mozilla/5.0' -sS -D /tmp/api-probe/board.headers "$base/game/events/genesis/leaderboard?offset=0&limit=5" -o /tmp/api-probe/board.json
+          curl -L --compressed -A 'Mozilla/5.0' -sS -D /tmp/api-probe/version.headers "$base/game/events/genesis/leaderboard/version" -o /tmp/api-probe/version.json
+          curl -L --compressed -A 'Mozilla/5.0' -sS -D /tmp/api-probe/search.headers "$base/game/events/genesis/leaderboard/search?q=CyphrGM&limit=10" -o /tmp/api-probe/search.json
+          for f in /tmp/api-probe/*; do echo "=== $f ==="; cat "$f"; echo; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commons-api-probe
+          path: /tmp/api-probe
