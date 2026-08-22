@@ -1,0 +1,207 @@
+/* Common Strategy identity layer
+   Typography: Newsreader / Unbounded / Azeret Mono
+   Mark: open common-pool ring + ascending accumulation steps */
+
+::selection{background:#c7ff69;color:#07110c}
+
+.cs-app{
+  font-family:var(--font-editorial),Georgia,serif;
+  font-optical-sizing:auto;
+  --font-data:var(--font-mono),ui-monospace,SFMono-Regular,Menlo,monospace;
+  --font-mark:var(--font-brand),Arial,sans-serif;
+}
+
+/* Identity lockup */
+.brand{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  width:max-content;
+  color:var(--white);
+  font-family:var(--font-mark)!important;
+  font-size:10px!important;
+  font-weight:500!important;
+  line-height:1!important;
+  letter-spacing:-.065em!important;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.brand::before{
+  content:"";
+  width:31px;
+  height:31px;
+  flex:0 0 31px;
+  display:block;
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:contain;
+  background-image:url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M48 15C43.6 10.7 37.6 8 31 8C18.3 8 8 18.3 8 31C8 43.7 18.3 54 31 54C37.7 54 43.7 51.1 47.9 46.5' stroke='%23C7FF69' stroke-width='5.5' stroke-linecap='square'/%3E%3Cpath d='M18.5 40H27V31.5H35.5V23H46' stroke='%23F3F0E7' stroke-width='5.5' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
+  filter:drop-shadow(0 0 10px rgba(199,255,105,.08));
+  transition:transform .5s cubic-bezier(.16,.84,.2,1),filter .35s ease;
+}
+.brand:hover::before{transform:rotate(-8deg) scale(1.06);filter:drop-shadow(0 0 16px rgba(199,255,105,.22))}
+.brand span{color:var(--acid)!important;font-weight:400;letter-spacing:-.075em}
+.brand small{
+  margin-left:4px!important;
+  color:#617067!important;
+  font-family:var(--font-data)!important;
+  font-size:6px!important;
+  font-weight:400!important;
+  letter-spacing:.05em!important;
+  text-transform:none;
+}
+.cs-footer>.brand{font-size:9px!important}
+.cs-footer>.brand::before{width:27px;height:27px;flex-basis:27px}
+
+/* Editorial display voice */
+.opening-title h1,
+.opening-thesis p,
+.rank-lockup b,
+.thesis-copy h2,
+.ownership-copy h2,
+.constellation-core-value,
+.quote-head h2,
+.ledger-head h2,
+.pledge-scene blockquote,
+.waiting-stage h1{
+  font-family:var(--font-editorial),Georgia,serif!important;
+  font-optical-sizing:auto;
+  font-kerning:normal;
+  text-rendering:geometricPrecision;
+}
+.opening-title h1{
+  font-weight:300!important;
+  line-height:.665!important;
+  letter-spacing:-.072em!important;
+}
+.opening-title h1 span{font-weight:500;letter-spacing:-.082em}
+.opening-title h1 em{font-weight:300;letter-spacing:-.065em}
+.opening-thesis p{font-weight:400!important;line-height:1.03!important;letter-spacing:-.025em}
+.rank-lockup b{font-weight:400!important;letter-spacing:-.05em}
+.thesis-copy h2,.quote-head h2,.ledger-head h2{font-weight:350!important;letter-spacing:-.065em!important}
+.ownership-copy h2{font-weight:300!important;letter-spacing:-.075em!important}
+.pledge-scene blockquote{font-weight:350!important;letter-spacing:-.052em!important}
+
+/* A harder typographic counterpoint for authored labels */
+.thesis-grid h3,
+.event-flash>p{
+  font-family:var(--font-mark)!important;
+  font-weight:500!important;
+  letter-spacing:-.055em!important;
+  text-transform:uppercase;
+}
+.thesis-grid h3{font-size:11px!important}
+
+/* Data voice — one consistent engineered family throughout */
+.topline nav,
+.live-status,
+.market-rail,
+.opening-index span,
+.opening-index small,
+.eyebrow,
+.opening-thesis a,
+.data-kicker,
+.score-lockup strong,
+.motion-chip,
+.rank-lockup>span,
+.metric-row span,
+.metric-row b,
+.history-ribbon,
+.opening-tape,
+.scroll-cue,
+.section-number,
+.thesis-copy>p,
+.thesis-grid span,
+.thesis-grid p,
+.ownership-copy>.reveal>p,
+.ownership-copy h2 small,
+.ownership-rule,
+.constellation-core-title,
+.owner-node text,
+.ownership-bar span,
+.ownership-bar b,
+.ownership-bar>p,
+.quote-head p,
+.quote-form label>span,
+.quote-form input,
+.quote-form button,
+.quote-output span,
+.quote-output small,
+.quote-output strong,
+.quote-output>a,
+.quote-error,
+.sync-dot,
+.ledger-head>div:last-child p,
+.ledger-columns,
+.ledger-list time,
+.ledger-list span,
+.ledger-list em,
+.ledger-list b,
+.ledger-empty,
+.pledge-scene .reveal>p,
+.pledge-metrics span,
+.pledge-scene>small,
+.cs-footer,
+.event-flash>span,
+.event-flash>small,
+.event-flash>strong,
+.event-flash>b,
+.data-error,
+.waiting-stage>p,
+.waiting-stage>span{
+  font-family:var(--font-data)!important;
+}
+
+/* Replace the generic startup-serif rhythm with a deliberate editorial cadence */
+.thesis-grid p,
+.ledger-head>div:last-child p,
+.pledge-scene>small{
+  line-height:1.78!important;
+}
+.eyebrow,.section-number,.data-kicker,.live-status,.sync-dot{letter-spacing:.145em!important}
+
+/* Wordmark repetition becomes a recognizable motif rather than plain text */
+.opening-title::after{
+  content:"CS / COMMON POOL / 100% VOUCHER OWNED";
+  position:absolute;
+  left:0;
+  bottom:-34px;
+  color:#516057;
+  font-family:var(--font-data);
+  font-size:5.5px;
+  letter-spacing:.18em;
+  white-space:nowrap;
+}
+
+/* Subtle display rule: no rounded-card vocabulary, geometry stays editorial */
+.motion-chip{border-radius:0!important;padding:6px 7px!important}
+.quote-form button{border-radius:0!important}
+
+/* Mark-led opening details */
+.opening-title:before{
+  content:"";
+  position:absolute;
+  width:46px;
+  height:46px;
+  right:3%;
+  top:-7%;
+  opacity:.16;
+  background-repeat:no-repeat;
+  background-size:contain;
+  background-image:url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M48 15C43.6 10.7 37.6 8 31 8C18.3 8 8 18.3 8 31C8 43.7 18.3 54 31 54C37.7 54 43.7 51.1 47.9 46.5' stroke='%23C7FF69' stroke-width='5.5' stroke-linecap='square'/%3E%3Cpath d='M18.5 40H27V31.5H35.5V23H46' stroke='%23F3F0E7' stroke-width='5.5' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E");
+  animation:identityDrift 8s ease-in-out infinite alternate;
+}
+@keyframes identityDrift{to{transform:translateY(8px) rotate(8deg);opacity:.28}}
+
+@media(max-width:860px){
+  .brand{font-size:8px!important;gap:8px!important}
+  .brand::before{width:27px;height:27px;flex-basis:27px}
+  .opening-title::after{bottom:-26px;font-size:5px}
+  .opening-title:before{display:none}
+}
+@media(max-width:600px){
+  .brand{font-size:7px!important;letter-spacing:-.055em!important}
+  .brand::before{width:24px;height:24px;flex-basis:24px}
+  .opening-title h1{letter-spacing:-.065em!important}
+  .opening-title::after{display:none}
+}
