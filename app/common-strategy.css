@@ -56,7 +56,9 @@
 .pool-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:0 20%}
 .pool-center-label{font:600 11px/1 var(--mono);letter-spacing:.22em;color:var(--muted)}
 .pool-center strong{font:600 clamp(40px,4.8vw,74px)/0.9 var(--mono);letter-spacing:-.05em;font-variant-numeric:tabular-nums}
-.pool-center-sub{font:600 11px/1 var(--mono);letter-spacing:.1em;color:var(--acid)}
+.pool-center-split{font:600 11px/1 var(--mono);letter-spacing:.08em;color:var(--acid)}
+.pool-center-split i{font-style:normal;color:var(--muted)}
+.pool-center-sub{font:600 10px/1 var(--mono);letter-spacing:.1em;color:var(--muted)}
 .pool-center-seal{width:52px;height:52px;opacity:.85}
 .pool-center-first{font:600 10px/1.5 var(--mono);letter-spacing:.1em;color:var(--body)}
 .pool-ripple{position:absolute;inset:4.5%;border-radius:50%;border:2px solid var(--acid);pointer-events:none;animation:ripple 1.3s cubic-bezier(.16,.84,.2,1) forwards}

@@ -20,7 +20,11 @@ const two=(n:number)=>String(Math.max(0,n)).padStart(2,'0');
 const CLOSE_AT=process.env.NEXT_PUBLIC_COMMONS_CLOSE_AT;
 const OPEN_AT=process.env.NEXT_PUBLIC_COMMONS_OPEN_AT;
 
-const SEGMENT_COLORS=['#c9ff70','#a8d95e','#86b452','#648f45','#486b38','#33502c','#274023'];
+// Five named slices, validated for adjacent-pair separation on the dark surface
+// (worst adjacent ΔE 15.9 normal / 15.0 CVD). The old smooth green ramp sat at
+// ΔE 5.7 — neighbouring owners were literally indistinguishable. The tail folds
+// into `others`, which is directly labelled rather than relying on its colour.
+const SEGMENT_COLORS=['#c9ff70','#34b37e','#b8e04f','#6b9c5a','#4fd3ae'];
 const OTHERS_COLOR='#1d2e20';
 
 function AnimatedNumber({value,format=(n:number)=>nf.format(Math.round(n))}:{value:number;format?:(n:number)=>string}){
@@ -138,6 +142,9 @@ function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyS
         {state?<>
           <span className="pool-center-label">COMMONS POINTS HELD</span>
           <strong><AnimatedNumber value={state.totalPoints}/></strong>
+          {/* The slices divide the vouch pool, not the headline total — show the
+              split so the two numbers visibly reconcile. */}
+          <span className="pool-center-split">{nf.format(state.positiveVouchPoints)} POOLED <i>+</i> {nf.format(state.basePoints)} BASE</span>
           <span className="pool-center-sub">RANK #{nf.format(state.rank)} &middot; {state.voucherCount} OWNER{state.voucherCount===1?'':'S'}</span>
         </>:<>
           <Seal className="pool-center-seal"/>
@@ -266,7 +273,8 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
           <div><span>RANK</span><b>{state?`#${nf.format(state.rank)}`:'—'}</b></div>
           <div><span>CUTOFF</span><b className="acid">#1,000</b></div>
           <div><span>OWNERS</span><b>{state?nf.format(state.voucherCount):'0'}</b></div>
-          <div><span>VOUCH POOL</span><b>{state?nf.format(state.positiveVouchPoints):'—'}</b></div>
+          <div><span>VOUCH POOL</span><b className="acid">{state?nf.format(state.positiveVouchPoints):'—'}</b></div>
+          <div><span>BASE &middot; UNOWNED</span><b>{state?nf.format(state.basePoints):'—'}</b></div>
           <div><span>PLEDGED</span><b className="acid">100%</b></div>
           <div><span>TIME LEFT</span><b>{countdown.closed?'CLOSED':countdown.known?`${countdown.days}D ${countdown.hours}H ${countdown.minutes}M`:'TBC'}</b></div>
         </div>
