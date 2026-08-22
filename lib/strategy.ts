@@ -47,8 +47,6 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
       const fairness = Math.min(ownPower, power) / Math.max(ownPower, power, 1);
       const available = p.vouchesRemaining === undefined || p.vouchesRemaining > 0;
 
-      // Once qualified, incoming score and rank gain remain valuable. Before qualification,
-      // crossing the line dominates, then rank gain and reciprocal incentive break ties.
       const ourUtility = qualified
         ? clamp(userRankGain / Math.max(60, user.rank * .28))
         : (canMoveUsAcross ? 1 : clamp(power / Math.max(need, 1)));
@@ -111,6 +109,7 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
   const vouchPowers = snapshot.participants.map(p => p.baseScore * GAME.vouchRate).sort((a,b) => a-b);
   const atOrBelow = vouchPowers.filter(power => power <= ownPower).length;
   const vouchPercentile = vouchPowers.length ? Math.round(atOrBelow / vouchPowers.length * 100) : 0;
+  const medianVouchPower = vouchPowers.length ? vouchPowers[Math.floor(vouchPowers.length / 2)] : 0;
 
   const thresholds = [50000, 75000, 100000, 150000].map(amount => ({
     amount,
@@ -135,7 +134,7 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
     nextTargetGap,
     scoreShare,
     vouchPercentile,
+    medianVouchPower,
     thresholds,
-    rankAfter,
   };
 }
