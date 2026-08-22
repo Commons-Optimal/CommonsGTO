@@ -11,7 +11,8 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
   const ownPower = user.baseScore * GAME.vouchRate;
   const need = Math.max(0, target - user.totalScore);
   const qualified = user.totalScore >= target;
-  const rankAfter = (score:number) => 1 + snapshot.participants.filter(p => p.totalScore > score).length;
+  const rankScores = snapshot.participants.map(p => p.totalScore).sort((a,b) => b-a);
+  const rankAfter = (score:number) => 1 + rankScores.filter(value => value > score).length;
 
   const ladderRanks = [100, 250, 500, 750, 900, 1000];
   const ladder = ladderRanks.map(rank => ({
@@ -133,8 +134,10 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
     nextTargetScore,
     nextTargetGap,
     scoreShare,
+    top1000Total,
     vouchPercentile,
     medianVouchPower,
     thresholds,
+    rankScores,
   };
 }
