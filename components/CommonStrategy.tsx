@@ -1,11 +1,11 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 
 type Owner={handle:string;avatarUrl?:string;points:number;share:number;lastAt?:string;tweetUrl?:string};
 type Tape={id:string;kind:'vouch'|'slash';handle:string;avatarUrl?:string;points:number;at?:string;tweetUrl?:string};
 type History={at:string;score:number;delta:number;handle:string;kind:'vouch'|'slash'};
-export type StrategyState={handle:string;display:string;avatarUrl?:string;rank:number;basePoints:number;reputationPoints:number;totalPoints:number;boardVersion:number;totalParticipants:number;totalEntries:number;positiveVouchPoints:number;voucherCount:number;owners:Owner[];tape:Tape[];history:History[];fetchedAt:string};
+export type StrategyState={handle:string;display:string;avatarUrl?:string;rank:number;basePoints:number;reputationPoints:number;totalPoints:number;boardVersion:number;totalParticipants:number;totalEntries:number;positiveVouchPoints:number;voucherCount:number;owners:Owner[];tape:Tape[];history:History[];fetchedAt:string;closesAt?:string|null;opensAt?:string|null};
 type Quote={handle:string;rank:number;basePoints:number;power:number;shareAfter:number;poolAfter:number};
 type Slice=
   |{type:'owner';handle:string;points:number;share:number;lastAt?:string}
@@ -49,19 +49,33 @@ function useNow(){
 }
 
 type CountdownParts={days:string;hours:string;minutes:string;seconds:string;label:string;closed:boolean;known:boolean;remainFrac:number|null};
-function useCountdown():CountdownParts{
+function useCountdown(closeIso?:string,openIso?:string):CountdownParts{
   const now=useNow();
   return useMemo(()=>{
-    const close=CLOSE_AT?Date.parse(CLOSE_AT):NaN;
+    const close=closeIso?Date.parse(closeIso):NaN;
     if(!Number.isFinite(close))return {days:'--',hours:'--',minutes:'--',seconds:'--',label:'CLOSE TIME TBC',closed:false,known:false,remainFrac:null};
     if(now===null)return {days:'--',hours:'--',minutes:'--',seconds:'--',label:'SYNCING CLOCK',closed:false,known:true,remainFrac:null};
     const remaining=close-now;
     if(remaining<=0)return {days:'00',hours:'00',minutes:'00',seconds:'00',label:'EXPERIMENT CLOSED',closed:true,known:true,remainFrac:0};
     const s=Math.floor(remaining/1000);
-    const open=OPEN_AT?Date.parse(OPEN_AT):NaN;
+    const open=openIso?Date.parse(openIso):NaN;
     const remainFrac=Number.isFinite(open)&&close>open?Math.min(1,Math.max(0,remaining/(close-open))):null;
     return {days:two(Math.floor(s/86400)),hours:two(Math.floor(s/3600)%24),minutes:two(Math.floor(s/60)%60),seconds:two(s%60),label:'UNTIL THE FINAL SNAPSHOT',closed:false,known:true,remainFrac};
-  },[now]);
+  },[now,closeIso,openIso]);
+}
+
+function Reveal({children,className=''}:{children:ReactNode;className?:string}){
+  const ref=useRef<HTMLDivElement>(null);
+  const [visible,setVisible]=useState(false);
+  useEffect(()=>{
+    const el=ref.current;
+    if(!el)return;
+    if(typeof IntersectionObserver==='undefined'){setVisible(true);return}
+    const observer=new IntersectionObserver(([entry])=>{if(entry.isIntersecting){setVisible(true);observer.disconnect()}},{threshold:.05});
+    observer.observe(el);
+    return()=>observer.disconnect();
+  },[]);
+  return <div ref={ref} className={`reveal ${visible?'is-visible':''} ${className}`}>{children}</div>;
 }
 
 type Segment={key:string;handle?:string;label:string;share:number;color:string;isOthers?:boolean};
@@ -82,6 +96,8 @@ function ringSlice(startDeg:number,endDeg:number,rOut:number,rIn:number){
   return `M${ax.toFixed(2)} ${ay.toFixed(2)}A${rOut} ${rOut} 0 ${large} 1 ${bx.toFixed(2)} ${by.toFixed(2)}L${cx.toFixed(2)} ${cy.toFixed(2)}A${rIn} ${rIn} 0 ${large} 0 ${dx.toFixed(2)} ${dy.toFixed(2)}Z`;
 }
 
+const MOTES=[18,64,117,163,205,248,292,338,86];
+
 function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyState;countdown:CountdownParts;highlight?:string;rippleKey:number;status:string}){
   const segments=useMemo(()=>buildSegments(state?.owners??[]),[state?.owners]);
   const gap=segments.length>1?1.6:0;
@@ -91,21 +107,24 @@ function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyS
   return <div className="pool-ring-stage">
     <div className="pool-ring-frame">
       {rippleKey>0&&<div className="pool-ripple" key={rippleKey} aria-hidden="true"/>}
+      {MOTES.map((angle,i)=><span key={angle} className="pool-mote" style={{'--a':`${angle}deg`,'--d':`${(i%5)*1.4}s`,'--t':`${5.5+(i%4)*1.3}s`} as CSSProperties} aria-hidden="true"><i/></span>)}
       <svg className="pool-ring" viewBox="0 0 640 640" role="img" aria-label="Ownership of the vouch pool, and time remaining in the experiment">
         <circle cx="320" cy="320" r="308" className="clock-track"/>
         {countdown.remainFrac!==null
           ?<circle cx="320" cy="320" r="308" className="clock-progress" pathLength={100} strokeDasharray={`${(countdown.remainFrac*100).toFixed(2)} 100`} transform="rotate(-90 320 320)"/>
           :<circle cx="320" cy="320" r="308" className="clock-progress idle" pathLength={100} strokeDasharray="100 100" transform="rotate(-90 320 320)"/>}
-        {segments.length
-          ?segments.map(segment=>{
-            const span=segment.share*360*scale;
-            const path=ringSlice(cursor,cursor+span,280,182);
-            cursor+=span+gap;
-            const dim=highlight&&segment.key!==highlight;
-            const hit=highlight&&segment.key===highlight;
-            return <path key={segment.key} d={path} fill={segment.color} className={`pool-slice ${dim?'is-dim':''} ${hit?'is-you':''}`}><title>{`${segment.label} — ${pct(segment.share)}`}</title></path>;
-          })
-          :<circle cx="320" cy="320" r="231" className="pool-empty-ring"/>}
+        <g className="pool-slices">
+          {segments.length
+            ?segments.map(segment=>{
+              const span=segment.share*360*scale;
+              const path=ringSlice(cursor,cursor+span,280,182);
+              cursor+=span+gap;
+              const dim=highlight&&segment.key!==highlight;
+              const hit=highlight&&segment.key===highlight;
+              return <path key={segment.key} d={path} fill={segment.color} className={`pool-slice ${dim?'is-dim':''} ${hit?'is-you':''}`}><title>{`${segment.label} — ${pct(segment.share)}`}</title></path>;
+            })
+            :<circle cx="320" cy="320" r="231" className="pool-empty-ring"/>}
+        </g>
       </svg>
       <div className="pool-center">
         {state?<>
@@ -128,12 +147,13 @@ function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyS
 }
 
 function Ticker({state,countdown}:{state?:StrategyState;countdown:CountdownParts}){
-  const base:{k:string;v:string;down?:boolean;up?:boolean}[]=state
-    ?[{k:'CSTRAT',v:nf.format(state.totalPoints),up:true},{k:'RANK',v:`#${nf.format(state.rank)}`},{k:'OWNERS',v:String(state.voucherCount)},{k:'TIME LEFT',v:countdown.known?`${countdown.days}D ${countdown.hours}H ${countdown.minutes}M`:'TBC',up:true},{k:'PLEDGED',v:'100%'}]
-    :[{k:'STATUS',v:'AWAITING INDEX'},{k:'CSTRAT',v:'—'},{k:'TIME LEFT',v:countdown.known?`${countdown.days}D ${countdown.hours}H ${countdown.minutes}M`:'TBC'},{k:'PLEDGED',v:'100%'}];
-  const flow=state?.tape.slice(0,8).map(entry=>({k:`@${entry.handle}`,v:`${entry.points>0?'+':''}${compact(entry.points)}`,down:entry.kind==='slash',up:entry.kind==='vouch'}))??[];
-  const items=[...base,...flow];
-  const track=(hidden:boolean)=><div className="ticker-set" aria-hidden={hidden||undefined}>{items.map((item,i)=><span key={`${item.k}-${i}`} className={item.down?'down':item.up?'up':''}><small>{item.k}</small><b>{item.v}</b></span>)}</div>;
+  const clock=countdown.known?`${countdown.days} : ${countdown.hours} : ${countdown.minutes} : ${countdown.seconds}`:'TBC';
+  const base:{k:string;v:string;up?:boolean}[]=state
+    ?[{k:'THE POOL',v:`${nf.format(state.positiveVouchPoints)} PTS`,up:true},{k:countdown.closed?'STATUS':'CLOSES IN',v:countdown.closed?'CLOSED':clock,up:true},{k:'OWNERS',v:String(state.voucherCount)}]
+    :[{k:'STATUS',v:'AWAITING INDEX'},{k:countdown.closed?'STATUS':'CLOSES IN',v:countdown.closed?'CLOSED':clock}];
+  const vouches=state?.tape.filter(entry=>entry.kind==='vouch').slice(0,12).map(entry=>({k:`@${entry.handle} VOUCHED`,v:`+${compact(entry.points)}`,up:true}))??[];
+  const items=[...base,...vouches];
+  const track=(hidden:boolean)=><div className="ticker-set" aria-hidden={hidden||undefined}>{items.map((item,i)=><span key={`${item.k}-${i}`} className={item.up?'up':''}><small>{item.k}</small><b>{item.v}</b></span>)}</div>;
   return <div className="pool-ticker"><div className="pool-ticker-track">{track(false)}{track(true)}</div></div>;
 }
 
@@ -158,7 +178,7 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
   const [highlight,setHighlight]=useState<string|undefined>();
   const [showAllOwners,setShowAllOwners]=useState(false);
   const known=useRef(new Set(initial?.tape.map(entry=>entry.id)??[]));
-  const countdown=useCountdown();
+  const countdown=useCountdown(state?.closesAt??CLOSE_AT,state?.opensAt??OPEN_AT);
 
   useEffect(()=>{
     let cancelled=false;
@@ -225,11 +245,13 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
       <a className="header-vouch" href={vouchHref} target="_blank" rel="noreferrer">VOUCH @{handle.toUpperCase()} <b aria-hidden="true">&#8599;</b></a>
     </header>
 
+    <Ticker state={state} countdown={countdown}/>
+
     <section className="pool-stage" id="pool-stage" aria-label="The pool">
       <aside className="stage-rail rail-left">
         <div className="rail-block">
           <span className="rail-title">THE POOL</span>
-          <p>Every vouch pours points in. Every voucher owns a slice of the pool, pro rata. The outer ring drains as the experiment runs out.</p>
+          <p>Vouch games favour whales &mdash; alone, a common account is noise. Pooled into one account, the commons is the whale. Every vouch pours points in and owns a pro-rata slice of whatever the pool wins.</p>
         </div>
         <div className="rail-stats">
           <div><span>RANK</span><b>{state?`#${nf.format(state.rank)}`:'—'}</b></div>
@@ -258,11 +280,23 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
       </aside>
     </section>
 
-    <Ticker state={state} countdown={countdown}/>
+    <section className="thesis-section" id="thesis">
+      <Reveal>
+        <span className="section-code">01 / THE THESIS</span>
+        <h2>Vouch games are rigged for whales. <em>So the commons became one.</em></h2>
+        <p className="thesis-lede">Reach wins these experiments: big accounts soak up vouches while common people scatter theirs and finish with nothing. Common Strategy pools the crowd into a single account &mdash; if it lands in the top 1,000, the allocation flows back to every voucher, pro rata. Not the founder. Not a whale. The people who built it.</p>
+        <div className="thesis-grid">
+          <div><span>ALONE</span><b>Your vouch is noise</b><p>Scattered across thousands of accounts, small vouches decide nothing and win nothing.</p></div>
+          <div><span>POOLED</span><b>The crowd is the whale</b><p>One shared account climbs the board with the weight of every voucher behind it.</p></div>
+          <div><span>SETTLED</span><b>100% to the people</b><p>Every point contributed is a pro-rata claim on the whole allocation. Founder keeps 0.00%.</p></div>
+        </div>
+      </Reveal>
+    </section>
 
     <section className="slice-section" id="your-slice">
+      <Reveal className="slice-grid">
       <div className="slice-copy">
-        <span className="section-code">01 / FIND YOUR SLICE</span>
+        <span className="section-code">02 / FIND YOUR SLICE</span>
         <h2>Already vouched? Your slice <em>lights up.</em></h2>
         <p>Enter your Commons handle. If you are on the cap table we highlight your slice in the pool; if not, we price what a vouch from you would own today.</p>
         <form onSubmit={lookup}>
@@ -294,11 +328,13 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
           <p>Your pro-rata share appears here.{countdown.closed?' The experiment has closed — shares are final.':' Vouches contribute 35% of your base score to the pool.'}</p>
         </div>}
       </div>
+      </Reveal>
     </section>
 
     <section className="cap-section" id="cap-table">
+      <Reveal className="cap-inner">
       <div className="cap-head">
-        <div><span className="section-code">02 / THE CAP TABLE</span><h2>Ownership, <em>not followers.</em></h2></div>
+        <div><span className="section-code">03 / THE CAP TABLE</span><h2>Ownership, <em>not followers.</em></h2></div>
         <div className="cap-total"><b>100.000%</b><span>{state?`VOUCHER OWNED · ${state.voucherCount} CURRENT OWNER${state.voucherCount===1?'':'S'}`:'WAITING FOR THE FIRST OWNER'}</span></div>
       </div>
       {segments.length?<div className="cap-bar" role="img" aria-label="Share of the vouch pool by owner">
@@ -318,11 +354,13 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
         </a>)}
         {owners.length>8&&<button className="cap-more" onClick={()=>setShowAllOwners(v=>!v)}>{showAllOwners?'COLLAPSE THE REGISTER':`VIEW ALL ${owners.length} OWNERS`}</button>}
       </div>}
+      </Reveal>
     </section>
 
     <section className="pledge-section" id="pledge">
+      <Reveal>
       <Seal className="pledge-seal"/>
-      <span className="section-code">03 / THE PLEDGE</span>
+      <span className="section-code">04 / THE PLEDGE</span>
       <blockquote>&ldquo;100% of any Commons allocation actually received by Common Strategy will be distributed to positive vouchers, <em>pro rata by the points they contributed.</em>&rdquo;</blockquote>
       <div className="pledge-grid">
         <div><span>DISTRIBUTION</span><b>100.00%</b></div>
@@ -331,6 +369,7 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
         <div><span>SOURCE</span><b>COMMONS LEDGER</b></div>
       </div>
       <small>Pool percentages are informational until the Commons experiment ends and @{handle} actually receives an allocation. If no allocation is received, there is nothing to distribute. Positive vouches only are included in the ownership denominator.</small>
+      </Reveal>
     </section>
 
     <footer className="pool-footer">

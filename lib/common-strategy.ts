@@ -27,6 +27,56 @@ async function commons<T>(path:string):Promise<T>{
 
 function clean(handle:string){return handle.replace(/^@/,'').trim().toLowerCase()}
 
+const DATE_FLOOR=Date.parse('2025-06-01');
+function toIsoDate(value:unknown):string|undefined{
+  if(typeof value==='number'&&Number.isFinite(value)){
+    const ms=value>1e12?value:value>1e9?value*1000:NaN;
+    if(Number.isFinite(ms)&&ms>DATE_FLOOR)return new Date(ms).toISOString();
+  }
+  if(typeof value==='string'){
+    if(/^\d{10,13}$/.test(value))return toIsoDate(Number(value));
+    if(/\d{4}-\d{2}-\d{2}/.test(value)){
+      const t=Date.parse(value);
+      if(Number.isFinite(t)&&t>DATE_FLOOR)return new Date(t).toISOString();
+    }
+  }
+  return undefined;
+}
+function findDateByKey(value:unknown,pattern:RegExp,depth=0):string|undefined{
+  if(!value||typeof value!=='object'||depth>4)return undefined;
+  const record=value as Record<string,unknown>;
+  for(const [key,entry] of Object.entries(record)){
+    if(pattern.test(key)){const iso=toIsoDate(entry);if(iso)return iso}
+  }
+  for(const entry of Object.values(record)){
+    const nested=findDateByKey(entry,pattern,depth+1);
+    if(nested)return nested;
+  }
+  return undefined;
+}
+
+// The experiment window: env vars win; otherwise best-effort discovery from the
+// Commons event metadata, cached for 30 minutes. Absent both, the UI shows TBC.
+let windowCache:{at:number;closesAt?:string;opensAt?:string}|undefined;
+export async function getExperimentWindow():Promise<{closesAt?:string;opensAt?:string}>{
+  const envClose=process.env.NEXT_PUBLIC_COMMONS_CLOSE_AT||undefined;
+  const envOpen=process.env.NEXT_PUBLIC_COMMONS_OPEN_AT||undefined;
+  if(envClose&&envOpen)return {closesAt:envClose,opensAt:envOpen};
+  if(!windowCache||Date.now()-windowCache.at>=30*60_000){
+    let closesAt:string|undefined,opensAt:string|undefined;
+    for(const path of [`/game/events/${EVENT}`,'/game/events']){
+      try{
+        const payload=await commons<unknown>(path);
+        closesAt=findDateByKey(payload,/end|clos|finish|deadline|until|expir/i);
+        opensAt=findDateByKey(payload,/start|open|begin|launch/i);
+        if(closesAt)break;
+      }catch{}
+    }
+    windowCache={at:Date.now(),closesAt,opensAt};
+  }
+  return {closesAt:envClose??windowCache.closesAt,opensAt:envOpen??windowCache.opensAt};
+}
+
 export type StrategyOwner={
   handle:string; avatarUrl?:string; points:number; share:number; lastAt?:string; tweetUrl?:string;
 };
@@ -38,10 +88,12 @@ export type StrategyState={
   handle:string; display:string; avatarUrl?:string; rank:number; basePoints:number; reputationPoints:number; totalPoints:number;
   boardVersion:number; totalParticipants:number; totalEntries:number; positiveVouchPoints:number; voucherCount:number;
   owners:StrategyOwner[]; tape:StrategyTapeEntry[]; history:StrategyHistoryPoint[]; fetchedAt:string;
+  closesAt:string|null; opensAt:string|null;
 };
 
 export async function getCommonStrategyState():Promise<StrategyState>{
   const fetchedAt=new Date().toISOString();
+  const experimentWindow=await getExperimentWindow();
   const version=await commons<VersionResponse>(`/game/events/${EVENT}/leaderboard/version`);
   const search=await commons<SearchResponse>(`/game/events/${EVENT}/leaderboard/search?board_version=${version.board_version}&q=${encodeURIComponent(COMMON_STRATEGY_HANDLE)}&limit=20`);
   const exact=(search.entries??[]).find(entry=>clean(entry.x_handle??'')===clean(COMMON_STRATEGY_HANDLE));
@@ -102,6 +154,8 @@ export async function getCommonStrategyState():Promise<StrategyState>{
     tape:[...rows].sort((a,b)=>(b.at??'').localeCompare(a.at??'')),
     history,
     fetchedAt,
+    closesAt:experimentWindow.closesAt??null,
+    opensAt:experimentWindow.opensAt??null,
   };
 }
 

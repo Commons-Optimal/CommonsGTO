@@ -27,7 +27,7 @@ const mono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: 'Common Strategy — 100% Voucher-Owned Commons Treasury',
-  description: 'A public Commons accumulation vehicle. 100% of any final allocation received is pledged pro rata to the accounts that vouched @commonstrat.',
+  description: 'Vouch games favour whales. Common Strategy pools the commons into one account — 100% of any final allocation is pledged pro rata to the people who vouched @commonstrat.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
