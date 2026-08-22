@@ -25,14 +25,19 @@ export async function POST(request: NextRequest) {
   if (!actor) return NextResponse.json({ enabled: matchmakingEnabled, error: 'actor required' }, { status: 400 });
 
   if (action === 'join') {
-    const remaining = body.remaining === undefined ? undefined : Number(body.remaining);
+    const remainingRaw = body.remaining === undefined ? undefined : Number(body.remaining);
+    const remaining = typeof remainingRaw === 'number' && Number.isFinite(remainingRaw)
+      ? Math.max(0, Math.floor(remainingRaw))
+      : undefined;
+    const rankRaw = Number(body.rank);
+    const powerRaw = Number(body.power);
     const goal = body.goal === 'GET_IN' || body.goal === 'MAX_SCORE' ? body.goal : 'CLIMB';
     const result = await joinMatchPool({
       handle: actor,
-      remaining: Number.isFinite(remaining) ? Math.max(0, Math.floor(remaining)) : undefined,
+      remaining,
       goal,
-      rank: Number.isFinite(Number(body.rank)) ? Number(body.rank) : undefined,
-      power: Number.isFinite(Number(body.power)) ? Number(body.power) : undefined,
+      rank: Number.isFinite(rankRaw) ? rankRaw : undefined,
+      power: Number.isFinite(powerRaw) ? powerRaw : undefined,
     });
     return NextResponse.json(result);
   }
