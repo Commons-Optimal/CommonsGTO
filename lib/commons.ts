@@ -1,65 +1,161 @@
 import 'server-only';
 import { GAME } from './config';
-import type { CommonsSnapshot, Interaction, Participant } from './types';
+import type { CommonsMeta, CommonsSnapshot, Participant } from './types';
 import { recordSnapshot } from './history';
 
 export class CommonsDataError extends Error {}
+
 type Json = Record<string, unknown>;
-
-const finite = (value: unknown) => {
-  const n = typeof value === 'string' ? Number(value.replace(/,/g, '')) : Number(value);
-  return Number.isFinite(n) ? n : undefined;
+type OfficialEntry = {
+  rank?: number;
+  user_id?: string;
+  joined?: boolean;
+  display?: string;
+  x_handle?: string | null;
+  github_handle?: string | null;
+  avatar_url?: string | null;
+  base_points?: number;
+  multiplier?: number;
+  reputation_points?: number;
+  total_points?: number;
 };
-const pick = (row: Json, keys: string[]) => keys.map(k => row[k]).find(v => v !== undefined);
-const interactions = (value: unknown): Interaction[] | undefined => Array.isArray(value) ? value.flatMap(item => {
-  if (!item || typeof item !== 'object') return [];
-  const r = item as Json, from = String(pick(r, ['from','fromUsername','sender']) ?? ''), to = String(pick(r, ['to','toUsername','recipient']) ?? '');
-  return from && to ? [{ from, to, value: finite(r.value), timestamp: typeof r.timestamp === 'string' ? r.timestamp : undefined }] : [];
-}) : undefined;
+type VersionResponse = { board_version?: number; total_entries?: number; total_participants?: number };
+type LeaderboardResponse = { entries?: OfficialEntry[]; total_entries?: number; total_participants?: number; board_version?: number; offset?: number };
 
-function normalizeParticipant(value: unknown, index: number): Participant | null {
-  if (!value || typeof value !== 'object') return null;
-  const row = value as Json;
-  const username = String(pick(row, ['username','handle','xUsername','name']) ?? '').replace(/^@/, '').trim();
-  const baseScore = finite(pick(row, ['baseScore','base_score','basePoints','base_points']));
-  const totalScore = finite(pick(row, ['totalScore','total_score','score','points']));
-  const rank = finite(pick(row, ['rank','position'])) ?? index + 1;
-  if (!username || baseScore === undefined || totalScore === undefined || rank < 1) return null;
+const API_BASE = process.env.COMMONS_API_BASE_URL || 'https://api.commonsmade.com';
+const EVENT = 'genesis';
+const PAGE_SIZE = 500;
+const FETCH_CONCURRENCY = 12;
+
+async function officialJson<T>(path: string, revalidate = GAME.cacheSeconds): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      headers: { accept: 'application/json' },
+      next: { revalidate },
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new CommonsDataError('Commons could not be reached.');
+  }
+  if (!response.ok) throw new CommonsDataError(`Commons returned ${response.status}.`);
+  try { return await response.json() as T; }
+  catch { throw new CommonsDataError('Commons returned invalid JSON.'); }
+}
+
+function num(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function normalizeParticipant(row: OfficialEntry): Participant | null {
+  const username = typeof row.x_handle === 'string' ? row.x_handle.replace(/^@/, '').trim() : '';
+  const baseScore = num(row.base_points);
+  const totalScore = num(row.total_points);
+  const rank = num(row.rank);
+  if (!username || baseScore === undefined || totalScore === undefined || rank === undefined || rank < 1) return null;
   return {
-    username, baseScore, totalScore, rank,
-    vouchersUsed: finite(pick(row, ['vouchersUsed','vouchesUsed','vouches_used'])),
-    vouchesRemaining: finite(pick(row, ['vouchesRemaining','vouches_remaining'])),
-    slashesUsed: finite(pick(row, ['slashesUsed','slashes_used'])),
-    slashesRemaining: finite(pick(row, ['slashesRemaining','slashes_remaining'])),
-    vouchesReceived: interactions(pick(row, ['vouchesReceived','vouches_received'])),
-    slashesReceived: interactions(pick(row, ['slashesReceived','slashes_received'])),
+    userId: row.user_id,
+    username,
+    displayName: row.display,
+    githubHandle: row.github_handle || undefined,
+    avatarUrl: row.avatar_url || undefined,
+    joined: row.joined,
+    baseScore,
+    reputationScore: num(row.reputation_points),
+    multiplier: num(row.multiplier),
+    totalScore,
+    rank,
   };
 }
 
+function supplyFromEvent(event: Json) {
+  const rules = event.rules && typeof event.rules === 'object' ? event.rules as Json : {};
+  const supply = rules.supply && typeof rules.supply === 'object' ? rules.supply as Json : {};
+  const next = supply.next_increase && typeof supply.next_increase === 'object' ? supply.next_increase as Json : {};
+  return {
+    vouchLimit: num(supply.vouches),
+    slashLimit: num(supply.slashes),
+    nextSupplyIncreaseAt: typeof next.at === 'string' ? next.at : undefined,
+    nextVouchLimit: num(next.total_vouches),
+    nextSlashLimit: num(next.total_slashes),
+  };
+}
+
+function pagePath(offset: number, limit: number, boardVersion: number) {
+  const qs = new URLSearchParams({ offset: String(offset), limit: String(limit), board_version: String(boardVersion) });
+  return `/game/events/${EVENT}/leaderboard?${qs}`;
+}
+
+async function getVersion() {
+  const version = await officialJson<VersionResponse>(`/game/events/${EVENT}/leaderboard/version`, 5);
+  if (!version.board_version || !version.total_entries) throw new CommonsDataError('Commons leaderboard metadata is incomplete.');
+  return version;
+}
+
+async function getEvent() {
+  return officialJson<Json>(`/game/events/${EVENT}`, 30);
+}
+
+export async function getCommonsMeta(): Promise<CommonsMeta> {
+  const [version, event] = await Promise.all([getVersion(), getEvent()]);
+  const cutoffPage = await officialJson<LeaderboardResponse>(pagePath(GAME.targetRank - 1, 1, version.board_version!), 10);
+  const cutoffRank1000 = num(cutoffPage.entries?.[0]?.total_points);
+  if (cutoffRank1000 === undefined) throw new CommonsDataError('Commons did not return rank 1000.');
+  return {
+    cutoffRank1000,
+    totalParticipants: num(version.total_participants),
+    totalEntries: num(version.total_entries),
+    boardVersion: num(version.board_version),
+    ...supplyFromEvent(event),
+    fetchedAt: new Date().toISOString(),
+    source: 'api.commonsmade.com',
+  };
+}
+
+async function fetchAllEntries(version: VersionResponse): Promise<OfficialEntry[]> {
+  const total = version.total_entries!;
+  const offsets = Array.from({ length: Math.ceil(total / PAGE_SIZE) }, (_, i) => i * PAGE_SIZE);
+  const pages: LeaderboardResponse[] = [];
+  for (let i = 0; i < offsets.length; i += FETCH_CONCURRENCY) {
+    const batch = offsets.slice(i, i + FETCH_CONCURRENCY);
+    pages.push(...await Promise.all(batch.map(offset => officialJson<LeaderboardResponse>(pagePath(offset, PAGE_SIZE, version.board_version!), 10))));
+  }
+  return pages.flatMap(page => Array.isArray(page.entries) ? page.entries : []);
+}
+
 export async function getCommonsSnapshot(): Promise<CommonsSnapshot> {
-  const url = process.env.COMMONS_API_URL;
-  if (!url) throw new CommonsDataError('The Commons data source is not configured.');
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      headers: process.env.COMMONS_API_TOKEN ? { authorization: `Bearer ${process.env.COMMONS_API_TOKEN}` } : undefined,
-      next: { revalidate: GAME.cacheSeconds }, signal: AbortSignal.timeout(12_000),
-    });
-  } catch { throw new CommonsDataError('The Commons source could not be reached.'); }
-  if (!response.ok) throw new CommonsDataError(`The Commons source returned ${response.status}.`);
-  const payload = await response.json() as Json | unknown[];
-  const root = Array.isArray(payload) ? {} as Json : payload;
-  const raw = Array.isArray(payload) ? payload : pick(root, ['participants','leaderboard','users','data']);
-  const nested = raw && !Array.isArray(raw) && typeof raw === 'object' ? pick(raw as Json, ['participants','leaderboard','users','data']) : raw;
-  if (!Array.isArray(nested)) throw new CommonsDataError('The Commons response did not contain a participant list.');
-  const participants = nested.map(normalizeParticipant).filter((p): p is Participant => Boolean(p)).sort((a,b) => a.rank-b.rank);
-  if (!participants.length) throw new CommonsDataError('The Commons response contained no valid participants.');
-  const cutoffParticipant = participants.find(p => p.rank === GAME.targetRank) ?? participants[GAME.targetRank - 1];
-  const explicitCutoff = finite(pick(root, ['cutoffRank1000','cutoff','qualificationCutoff']));
-  const cutoffRank1000 = explicitCutoff ?? cutoffParticipant?.totalScore;
-  if (cutoffRank1000 === undefined) throw new CommonsDataError('The live snapshot does not include enough ranks to establish the cutoff.');
-  const updated = pick(root, ['updatedAt','snapshotAt','timestamp']);
-  const snapshot={ participants, cutoffRank1000, upstreamUpdatedAt: typeof updated === 'string' ? updated : undefined, fetchedAt: new Date().toISOString(), source: new URL(url).hostname };
+  const [version, event] = await Promise.all([getVersion(), getEvent()]);
+  const rows = await fetchAllEntries(version);
+  const participants = rows
+    .filter(row => row.joined !== false)
+    .map(normalizeParticipant)
+    .filter((p): p is Participant => Boolean(p))
+    .sort((a, b) => a.rank - b.rank);
+
+  if (!participants.length) throw new CommonsDataError('Commons returned no joined participants.');
+  const cutoffParticipant = participants.find(p => p.rank === GAME.targetRank);
+  if (!cutoffParticipant) throw new CommonsDataError('Commons snapshot does not contain rank 1000.');
+
+  const snapshot: CommonsSnapshot = {
+    participants,
+    cutoffRank1000: cutoffParticipant.totalScore,
+    totalParticipants: num(version.total_participants),
+    totalEntries: num(version.total_entries),
+    boardVersion: num(version.board_version),
+    ...supplyFromEvent(event),
+    fetchedAt: new Date().toISOString(),
+    source: 'api.commonsmade.com',
+  };
   await recordSnapshot(snapshot);
   return snapshot;
+}
+
+export async function searchCommonsUser(username: string): Promise<Participant | null> {
+  const version = await getVersion();
+  const qs = new URLSearchParams({ q: username.replace(/^@/, ''), limit: '20', board_version: String(version.board_version) });
+  const result = await officialJson<{ entries?: OfficialEntry[] }>(`/game/events/${EVENT}/leaderboard/search?${qs}`, 10);
+  const wanted = username.replace(/^@/, '').toLowerCase();
+  const row = result.entries?.find(entry => entry.x_handle?.toLowerCase() === wanted);
+  return row ? normalizeParticipant(row) : null;
 }
