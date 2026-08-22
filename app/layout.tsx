@@ -6,11 +6,10 @@ import './match.css';
 import './match-home.css';
 import './match-premium.css';
 import './common-strategy.css';
-import './common-strategy-premium.css';
 
 export const metadata: Metadata = {
   title: 'Common Strategy — The Commons Treasury Company',
-  description: '100% of any Commons allocation received is pledged pro rata to the accounts that vouched Common Strategy.',
+  description: '100% of any Commons allocation received is pledged pro rata to the accounts that vouched @commonstrat.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
