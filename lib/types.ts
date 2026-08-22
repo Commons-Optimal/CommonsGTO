@@ -44,4 +44,13 @@ export type MarketCandidate = Participant & {
   mutualQualifier: boolean;
   dominated: boolean;
   available: boolean;
+  userScoreAfter: number;
+  userRankAfter: number;
+  userRankGain: number;
+  candidateScoreAfter: number;
+  candidateRankAfter: number;
+  candidateRankGain: number;
+  helpsThemCross: boolean;
+  canMoveUsAcross: boolean;
+  returnRatio: number;
 };
