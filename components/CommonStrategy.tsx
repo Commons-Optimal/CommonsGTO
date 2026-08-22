@@ -5,7 +5,7 @@ import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useRef, useSta
 type Owner={handle:string;avatarUrl?:string;points:number;share:number;lastAt?:string;tweetUrl?:string};
 type Tape={id:string;kind:'vouch'|'slash';handle:string;avatarUrl?:string;points:number;at?:string;tweetUrl?:string};
 type History={at:string;score:number;delta:number;handle:string;kind:'vouch'|'slash'};
-export type StrategyState={handle:string;display:string;avatarUrl?:string;rank:number;basePoints:number;reputationPoints:number;totalPoints:number;boardVersion:number;totalParticipants:number;totalEntries:number;positiveVouchPoints:number;voucherCount:number;owners:Owner[];tape:Tape[];history:History[];fetchedAt:string;closesAt?:string|null;opensAt?:string|null};
+export type StrategyState={handle:string;display:string;avatarUrl?:string;rank:number;basePoints:number;reputationPoints:number;totalPoints:number;boardVersion:number;totalParticipants:number;totalEntries:number;positiveVouchPoints:number;voucherCount:number;owners:Owner[];tape:Tape[];history?:History[];fetchedAt:string;closesAt?:string|null;opensAt?:string|null};
 type Quote={handle:string;rank:number;basePoints:number;power:number;shareAfter:number;poolAfter:number};
 type Slice=
   |{type:'owner';handle:string;points:number;share:number;lastAt?:string}
@@ -102,8 +102,18 @@ function ringSlice(startDeg:number,endDeg:number,rOut:number,rIn:number){
 
 const MOTES=[18,64,117,163,205,248,292,338,86];
 
+// A searched handle is a raw handle; the ring only has keys for named slices.
+// Owners outside the named cut live inside `others`, and an unmatchable handle
+// must dim nothing at all — otherwise the whole ring greys out with no slice lit.
+function resolveHighlight(segments:Segment[],highlight?:string){
+  if(!highlight)return undefined;
+  if(segments.some(s=>s.key===highlight))return highlight;
+  return segments.some(s=>s.isOthers)?'__others':undefined;
+}
+
 function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyState;countdown:CountdownParts;highlight?:string;rippleKey:number;status:string}){
   const segments=useMemo(()=>buildSegments(state?.owners??[]),[state?.owners]);
+  const highlightKey=useMemo(()=>resolveHighlight(segments,highlight),[segments,highlight]);
   const gap=segments.length>1?1.6:0;
   const scale=(360-gap*segments.length)/360;
   let cursor=0;
@@ -121,8 +131,8 @@ function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyS
           {segments.length
             ?segments.map(segment=>{
               const span=segment.share*360*scale;
-              const dim=highlight&&segment.key!==highlight;
-              const hit=highlight&&segment.key===highlight;
+              const dim=highlightKey&&segment.key!==highlightKey;
+              const hit=highlightKey&&segment.key===highlightKey;
               const className=`pool-slice ${dim?'is-dim':''} ${hit?'is-you':''}`;
               const title=<title>{`${segment.label} — ${pct(segment.share)}`}</title>;
               // A 360° arc has identical start and end points, which SVG drops
@@ -194,25 +204,57 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
   const [highlight,setHighlight]=useState<string|undefined>();
   const [showAllOwners,setShowAllOwners]=useState(false);
   const known=useRef(new Set(initial?.tape.map(entry=>entry.id)??[]));
+  const hasPolled=useRef(false);
+  const inFlight=useRef(false);
+  const latestSeq=useRef(0);
+  const failures=useRef(0);
   const countdown=useCountdown(state?.closesAt??CLOSE_AT,state?.opensAt??OPEN_AT);
 
   useEffect(()=>{
     let cancelled=false;
     const poll=async()=>{
+      // One request at a time: the upstream can take longer than the interval,
+      // and a slow response landing late must never overwrite a fresher one.
+      if(inFlight.current)return;
+      inFlight.current=true;
+      const seq=++latestSeq.current;
       try{
         const res=await fetch('/api/common-strategy',{cache:'no-store'});
         const next=await res.json() as StrategyState&{error?:string};
         if(!res.ok)throw new Error(next.error||'Live data unavailable');
-        if(cancelled)return;
-        if(next.tape.some(entry=>!known.current.has(entry.id))&&known.current.size)setRippleKey(k=>k+1);
+        if(cancelled||seq!==latestSeq.current)return;
+        // Ripple on genuinely new ledger entries — including the very first
+        // vouch, which lands while the known set is still empty.
+        if(hasPolled.current&&next.tape.some(entry=>!known.current.has(entry.id)))setRippleKey(k=>k+1);
         known.current=new Set(next.tape.map(entry=>entry.id));
+        hasPolled.current=true;
+        failures.current=0;
         setState(next);setError('');
-      }catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Live data unavailable')}
+      }catch(e){
+        if(cancelled)return;
+        failures.current+=1;
+        // Never let one blip paint a red bar over data that is still correct;
+        // and never surface a raw parse error to a visitor.
+        const message=e instanceof Error&&/not on the Commons leaderboard yet/i.test(e.message)
+          ? e.message
+          : 'Live data is temporarily unavailable — retrying.';
+        if(failures.current>=3)setError(message);
+      }finally{inFlight.current=false}
     };
     poll();
     const id=window.setInterval(poll,4000);
     return()=>{cancelled=true;window.clearInterval(id)};
   },[]);
+
+  // Keep a looked-up owner's share in step with later polls: new vouches dilute
+  // it, and a frozen number is a wrong number.
+  useEffect(()=>{
+    if(!state||!slice||slice.type!=='owner')return;
+    const owner=state.owners.find(o=>clean(o.handle)===clean(slice.handle));
+    if(!owner)return;
+    if(owner.points===slice.points&&owner.share===slice.share)return;
+    setSlice({type:'owner',handle:owner.handle,points:owner.points,share:owner.share,lastAt:owner.lastAt});
+  },[state,slice]);
 
   const lookup=async(e:FormEvent)=>{
     e.preventDefault();
@@ -232,7 +274,10 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
       if(!res.ok)throw new Error(data.error||'Account not found');
       const quote=data.quote as Quote;
       setSlice({type:'quote',handle:quote.handle,rank:quote.rank,power:quote.power,shareAfter:quote.shareAfter,poolAfter:quote.poolAfter});
-    }catch(err){setSliceError(err instanceof Error?err.message:'Account not found')}
+    }catch(err){
+      const message=err instanceof Error?err.message:'';
+      setSliceError(/not found|not on the Commons/i.test(message)?message:`@${q} could not be priced right now — try again.`);
+    }
     finally{setSliceLoading(false)}
   };
 
@@ -241,6 +286,7 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
   const expectedWait=!state&&/not on the Commons leaderboard yet/i.test(error);
   const vouchHref=`https://x.com/intent/post?text=${encodeURIComponent(`Hey @commonsmade, I vouch for @${handle}`)}`;
   const segments=buildSegments(state?.owners??[]);
+  const capHighlightKey=resolveHighlight(segments,highlight);
   const owners=state?.owners??[];
   const visibleOwners=showAllOwners?owners:owners.slice(0,8);
   const topPoints=owners[0]?.points??0;
@@ -288,7 +334,9 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
         <div className="flow-list">
           {state?.tape.slice(0,6).map(entry=><a key={entry.id} href={entry.tweetUrl||`https://x.com/${entry.handle}`} target="_blank" rel="noreferrer" className={entry.kind==='slash'?'is-slash':''}>
             <span className="flow-who">{entry.avatarUrl?<img src={entry.avatarUrl} alt=""/>:<i aria-hidden="true"/>}@{entry.handle}</span>
-            <time>{entry.at?new Date(entry.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'--:--'}</time>
+            {/* Server renders in UTC and the browser in the viewer's zone, so this
+                text legitimately differs across hydration. */}
+            <time suppressHydrationWarning>{entry.at?new Date(entry.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'--:--'}</time>
             <b>{entry.points>0?'+':''}{compact(entry.points)}</b>
           </a>)}
           {!state?.tape.length&&<div className="flow-empty"><Seal/><span>WAITING FOR THE FIRST VOUCH TO ENTER THE POOL.</span></div>}
@@ -355,7 +403,7 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
         <div className="cap-total"><b>100.000%</b><span>{state?`VOUCHER OWNED · ${state.voucherCount} CURRENT OWNER${state.voucherCount===1?'':'S'}`:'WAITING FOR THE FIRST OWNER'}</span></div>
       </div>
       {segments.length?<div className="cap-bar" role="img" aria-label="Share of the vouch pool by owner">
-        {segments.map(segment=><div key={segment.key} className={`cap-segment ${highlight&&segment.key===highlight?'is-you':''}`} style={{width:`${Math.max(segment.share*100,1)}%`,background:segment.color}}>
+        {segments.map(segment=><div key={segment.key} className={`cap-segment ${capHighlightKey&&segment.key===capHighlightKey?'is-you':''}`} style={{width:`${Math.max(segment.share*100,1)}%`,background:segment.color}}>
           {segment.share>=0.1&&!segment.isOthers&&<span>{segment.label} {pct(segment.share,1)}</span>}
           {segment.isOthers&&<span className="others">{segment.label} — {pct(segment.share,1)}</span>}
         </div>)}

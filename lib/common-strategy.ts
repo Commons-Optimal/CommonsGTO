@@ -42,17 +42,31 @@ function toIsoDate(value:unknown):string|undefined{
   }
   return undefined;
 }
-function findDateByKey(value:unknown,pattern:RegExp,depth=0):string|undefined{
-  if(!value||typeof value!=='object'||depth>4)return undefined;
-  const record=value as Record<string,unknown>;
-  for(const [key,entry] of Object.entries(record)){
-    if(pattern.test(key)){const iso=toIsoDate(entry);if(iso)return iso}
+// Matched on word boundaries, not raw substrings: a bare /end|clos|until|expir/
+// also hits `attendees`, `calendar` and `token_expires_at`, any of which would be
+// read as the experiment's close time. Boundaries still allow the common shapes
+// (`ends_at`, `event_end_at`, `endsAt`), so discovery keeps working.
+const CLOSE_KEY=/(^|_)(ends?|ended|closes?|closed|closing|finish(es|ed)?|deadline)(_|$)/i;
+const OPEN_KEY=/(^|_)(starts?|started|opens?|opened|opening|begins?|began|launch(es|ed)?)(_|$)/i;
+const snake=(key:string)=>key.replace(/([a-z0-9])([A-Z])/g,'$1_$2');
+const MAX_WINDOW_MS=90*864e5;
+
+function collectDatesByKey(value:unknown,pattern:RegExp,found:string[]=[],depth=0):string[]{
+  if(!value||typeof value!=='object'||depth>4)return found;
+  for(const [key,entry] of Object.entries(value as Record<string,unknown>)){
+    if(pattern.test(snake(key))){const iso=toIsoDate(entry);if(iso)found.push(iso)}
   }
-  for(const entry of Object.values(record)){
-    const nested=findDateByKey(entry,pattern,depth+1);
-    if(nested)return nested;
-  }
-  return undefined;
+  for(const entry of Object.values(value as Record<string,unknown>)) collectDatesByKey(entry,pattern,found,depth+1);
+  return found;
+}
+
+/** A discovered close time is only usable if it is plausibly this experiment's:
+ *  still ahead of us, and not absurdly far out. Anything else degrades to TBC —
+ *  discovery must never be able to declare the experiment over. */
+function plausibleClose(iso:string|undefined,now:number):string|undefined{
+  if(!iso)return undefined;
+  const t=Date.parse(iso);
+  return Number.isFinite(t)&&t>now+60_000&&t<now+MAX_WINDOW_MS?iso:undefined;
 }
 
 // The experiment window: env vars win; otherwise best-effort discovery from the
@@ -63,18 +77,29 @@ export async function getExperimentWindow():Promise<{closesAt?:string;opensAt?:s
   const envOpen=process.env.NEXT_PUBLIC_COMMONS_OPEN_AT||undefined;
   if(envClose&&envOpen)return {closesAt:envClose,opensAt:envOpen};
   if(!windowCache||Date.now()-windowCache.at>=30*60_000){
+    const now=Date.now();
     let closesAt:string|undefined,opensAt:string|undefined;
     for(const path of [`/game/events/${EVENT}`,'/game/events']){
       try{
         const payload=await commons<unknown>(path);
-        closesAt=findDateByKey(payload,/end|clos|finish|deadline|until|expir/i);
-        opensAt=findDateByKey(payload,/start|open|begin|launch/i);
-        if(closesAt)break;
+        // Earliest plausible future close, not merely the first key encountered.
+        const closes=collectDatesByKey(payload,CLOSE_KEY).map(iso=>plausibleClose(iso,now)).filter(Boolean) as string[];
+        const candidate=closes.sort()[0];
+        if(candidate){
+          closesAt=candidate;
+          opensAt=collectDatesByKey(payload,OPEN_KEY).filter(iso=>Date.parse(iso)<Date.parse(candidate)).sort()[0];
+          break;
+        }
       }catch{}
     }
     windowCache={at:Date.now(),closesAt,opensAt};
   }
-  return {closesAt:envClose??windowCache.closesAt,opensAt:envOpen??windowCache.opensAt};
+  // Re-checked on read: a date that was future when cached can elapse inside the
+  // 30-minute window. An operator-set close time is authoritative and may pass.
+  return {
+    closesAt:envClose??plausibleClose(windowCache.closesAt,Date.now()),
+    opensAt:envOpen??windowCache.opensAt,
+  };
 }
 
 export type StrategyOwner={
@@ -159,6 +184,29 @@ export async function getCommonStrategyState():Promise<StrategyState>{
   };
 }
 
+/** What the browser actually renders: at most a few dozen ledger rows, and no
+ *  `history` (computed but never displayed). Shipping the raw state re-sends the
+ *  entire ledger to every viewer every 4 seconds. */
+const TAPE_LIMIT=40;
+export function forClient(state:StrategyState){
+  const {history:_history,...rest}=state;
+  return {...rest,tape:state.tape.slice(0,TAPE_LIMIT)};
+}
+
+// One upstream round-trip is shared by every viewer polling in the same window,
+// and concurrent requests join the in-flight fetch instead of starting their own.
+const STATE_TTL_MS=3000;
+let stateCache:{at:number;value:StrategyState}|undefined;
+let statePending:Promise<StrategyState>|undefined;
+export async function getCachedCommonStrategyState():Promise<StrategyState>{
+  if(stateCache&&Date.now()-stateCache.at<STATE_TTL_MS)return stateCache.value;
+  if(statePending)return statePending;
+  statePending=getCommonStrategyState()
+    .then(value=>{stateCache={at:Date.now(),value};return value})
+    .finally(()=>{statePending=undefined});
+  return statePending;
+}
+
 export async function getPotentialVouch(handle:string){
   const query=handle.replace(/^@/,'').trim();
   if(!query) return null;
@@ -166,7 +214,7 @@ export async function getPotentialVouch(handle:string){
   const search=await commons<SearchResponse>(`/game/events/${EVENT}/leaderboard/search?board_version=${version.board_version}&q=${encodeURIComponent(query)}&limit=20`);
   const exact=(search.entries??[]).find(entry=>clean(entry.x_handle??'')===clean(query));
   if(!exact) return null;
-  const state=await getCommonStrategyState();
+  const state=await getCachedCommonStrategyState();
   const power=exact.base_points*0.35;
   const poolAfter=state.positiveVouchPoints+power;
   return {

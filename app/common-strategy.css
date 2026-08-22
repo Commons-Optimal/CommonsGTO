@@ -210,4 +210,8 @@
   .pledge-grid>div:nth-child(4){border-top:1px solid rgba(243,239,226,.2)}
   .pool-footer{grid-template-columns:1fr;justify-items:start;gap:12px}.pool-footer>a{justify-self:start}
 }
-@media(prefers-reduced-motion:reduce){.pool-app *{animation:none!important;transition:none!important}}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .pool-app *{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+}
