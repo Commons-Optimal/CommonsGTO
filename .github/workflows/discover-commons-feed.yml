@@ -1,0 +1,63 @@
+name: Discover Commons Feed
+
+on:
+  push:
+    branches:
+      - debug/commons-live-feed
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm install playwright@1.55.0
+          npx playwright install chromium --with-deps
+      - name: Capture Commons requests
+        run: |
+          cat > /tmp/discover.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const browser = await chromium.launch({headless:true});
+          const page = await browser.newPage({viewport:{width:1440,height:1000}});
+          const out=[];
+          page.on('response', async (res) => {
+            const req=res.request();
+            const url=res.url();
+            const ct=(res.headers()['content-type']||'').toLowerCase();
+            if (req.resourceType()==='xhr' || req.resourceType()==='fetch' || ct.includes('json')) {
+              let text='';
+              try { text=(await res.text()).slice(0,20000); } catch {}
+              out.push({status:res.status(),method:req.method(),type:req.resourceType(),url,contentType:ct,body:text});
+            }
+          });
+          const r=await page.goto('https://commonsmade.com/vouch',{waitUntil:'domcontentloaded',timeout:60000});
+          console.log('PAGE_STATUS',r?.status());
+          await page.waitForTimeout(15000);
+          console.log('TITLE',await page.title());
+          console.log('BODY_TEXT\n', (await page.locator('body').innerText()).slice(0,20000));
+          fs.writeFileSync('/tmp/requests.json',JSON.stringify(out,null,2));
+          console.log('REQUEST_COUNT',out.length);
+          for (const x of out) {
+            console.log('\n---REQUEST---');
+            console.log(x.status,x.method,x.type,x.url,x.contentType);
+            console.log(x.body.slice(0,4000));
+          }
+          await page.screenshot({path:'/tmp/commons.png',fullPage:true});
+          await browser.close();
+          EOF
+          node /tmp/discover.mjs | tee /tmp/discovery.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commons-feed-discovery
+          path: |
+            /tmp/discovery.log
+            /tmp/requests.json
+            /tmp/commons.png
