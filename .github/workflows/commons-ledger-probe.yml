@@ -1,0 +1,25 @@
+name: Commons Ledger Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [debug/commons-live-feed]
+    paths: [.github/workflows/commons-ledger-probe.yml]
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe ledgers and feed
+        run: |
+          set -euxo pipefail
+          base='https://api.commonsmade.com/game/events/genesis'
+          echo '=== participant ledger ==='
+          curl -L --compressed -A 'Mozilla/5.0' -sS "$base/participants/c665a7cf-2b83-4323-b4c1-fb40bad01cec/ledger" | head -c 12000
+          echo
+          echo '=== target ledger ==='
+          curl -L --compressed -A 'Mozilla/5.0' -sS "$base/targets/CyphrGM/ledger" | head -c 12000
+          echo
+          echo '=== feed ==='
+          curl -L --compressed -A 'Mozilla/5.0' -sS "$base/feed?limit=20" | head -c 12000
+          echo
