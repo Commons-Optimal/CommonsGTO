@@ -6,6 +6,7 @@ import './match.css';
 import './match-home.css';
 import './match-premium.css';
 import './common-strategy.css';
+import './common-strategy-premium.css';
 
 export const metadata: Metadata = {
   title: 'Common Strategy — The Commons Treasury Company',
