@@ -58,7 +58,7 @@ const PAGE_SIZE = 500;
 // A requested user outside this window is added through the official search endpoint.
 const MARKET_ROWS = 5000;
 
-async function commonsFetch<T>(path: string, revalidate = GAME.cacheSeconds): Promise<T> {
+async function commonsFetch<T>(path: string, revalidate: number = GAME.cacheSeconds): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
