@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './gto-v2.css';
 
 export const metadata: Metadata = {
-  title: 'Commons GTO — Vouch market strategy',
-  description: 'Find the strongest strategic use of your remaining Commons vouches from the live market state.',
+  title: 'Commons GTO',
+  description: 'Live Commons ranks, vouch values, trade outcomes and seven-vouch planning.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
