@@ -1,37 +1,141 @@
 import { GAME } from './config';
-import type { CommonsSnapshot, MarketCandidate, Participant } from './types';
+import type { CommonsSnapshot, MarketCandidate } from './types';
 
 const clamp = (n:number) => Math.max(0, Math.min(1, n));
-const coverage = (power:number, need:number) => need <= 0 ? 0 : clamp(power / need);
-const efficiency = (power:number, need:number) => need <= 0 ? .25 : Math.min(power, need) / Math.max(power, need);
 
 export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
   const user = snapshot.participants.find(p => p.username.toLowerCase() === username.toLowerCase());
   if (!user) return null;
+
   const target = snapshot.cutoffRank1000;
   const ownPower = user.baseScore * GAME.vouchRate;
   const need = Math.max(0, target - user.totalScore);
-  let candidates: MarketCandidate[] = snapshot.participants.filter(p => p.username !== user.username).map(p => {
-    const power = p.baseScore * GAME.vouchRate, theirNeed = Math.max(0, target-p.totalScore);
-    const ourUtility = coverage(power, need), theirUtility = coverage(ownPower, theirNeed);
-    const fairness = Math.min(ownPower,power) / Math.max(ownPower,power,1);
-    const available = p.vouchesRemaining === undefined || p.vouchesRemaining > 0;
-    const nash = Math.sqrt(ourUtility * theirUtility);
-    const fit = GAME.weights.nash*nash + GAME.weights.fairness*fairness + GAME.weights.efficiency*efficiency(power,need) + GAME.weights.availability*(available?1:0);
-    return {...p,power,need:theirNeed,ourUtility,theirUtility,available,mutualQualifier:need>0&&power>=need&&theirNeed>0&&ownPower>=theirNeed,strategicFit:Math.round(100*fit),dominated:false};
-  }).filter(c => c.available && (c.ourUtility>0 || c.theirUtility>0));
-  candidates = candidates.map(c => ({...c,dominated:candidates.some(a => a.username!==c.username && a.power>=c.power && a.theirUtility>=c.theirUtility && a.strategicFit>=c.strategicFit && (a.power>c.power || a.theirUtility>c.theirUtility || a.strategicFit>c.strategicFit))})).sort((a,b)=>b.strategicFit-a.strategicFit || b.power-a.power);
-  const actionable = candidates.filter(c=>!c.dominated);
-  const remaining = user.vouchesRemaining ?? Math.max(0, GAME.defaultVouches-(user.vouchersUsed ?? 0));
-  const viableReturns = candidates.filter(c=>c.theirUtility>.35).map(c=>c.power).sort((a,b)=>b-a);
-  const reservationValue = viableReturns[Math.min(Math.max(remaining-1,0),viableReturns.length-1)] ?? 0;
-  const best = actionable[0];
-  const hold = !best || remaining===0 || best.strategicFit < GAME.holdThreshold*100 || (best.power < reservationValue && !best.mutualQualifier);
-  const rankAfter = (score:number) => 1 + snapshot.participants.filter(p=>p.totalScore>score).length;
+  const qualified = user.totalScore >= target;
+  const rankAfter = (score:number) => 1 + snapshot.participants.filter(p => p.totalScore > score).length;
+
+  const ladderRanks = [100, 250, 500, 750, 900, 1000];
+  const ladder = ladderRanks.map(rank => ({
+    rank,
+    score: snapshot.participants.find(p => p.rank === rank)?.totalScore ?? 0,
+  })).filter(point => point.score > 0);
+
+  const nextTargetRank = !qualified ? 1000
+    : user.rank > 750 ? 500
+    : user.rank > 500 ? 250
+    : user.rank > 250 ? 100
+    : user.rank > 100 ? 50
+    : user.rank > 50 ? 25
+    : user.rank > 25 ? 10
+    : 1;
+  const nextTargetScore = snapshot.participants.find(p => p.rank === nextTargetRank)?.totalScore;
+  const nextTargetGap = nextTargetScore ? Math.max(0, nextTargetScore - user.totalScore) : undefined;
+
+  let candidates: MarketCandidate[] = snapshot.participants
+    .filter(p => p.username.toLowerCase() !== user.username.toLowerCase())
+    .map(p => {
+      const power = p.baseScore * GAME.vouchRate;
+      const theirNeed = Math.max(0, target - p.totalScore);
+      const userScoreAfter = user.totalScore + power;
+      const userRankAfter = rankAfter(userScoreAfter);
+      const userRankGain = Math.max(0, user.rank - userRankAfter);
+      const candidateScoreAfter = p.totalScore + ownPower;
+      const candidateRankAfter = rankAfter(candidateScoreAfter);
+      const candidateRankGain = Math.max(0, p.rank - candidateRankAfter);
+      const canMoveUsAcross = need > 0 && power >= need;
+      const helpsThemCross = theirNeed > 0 && ownPower >= theirNeed;
+      const mutualQualifier = canMoveUsAcross && helpsThemCross;
+      const fairness = Math.min(ownPower, power) / Math.max(ownPower, power, 1);
+      const available = p.vouchesRemaining === undefined || p.vouchesRemaining > 0;
+
+      // Once qualified, incoming score and rank gain remain valuable. Before qualification,
+      // crossing the line dominates, then rank gain and reciprocal incentive break ties.
+      const ourUtility = qualified
+        ? clamp(userRankGain / Math.max(60, user.rank * .28))
+        : (canMoveUsAcross ? 1 : clamp(power / Math.max(need, 1)));
+      const theirUtility = p.totalScore >= target
+        ? clamp(candidateRankGain / Math.max(60, p.rank * .28))
+        : (helpsThemCross ? 1 : clamp(ownPower / Math.max(theirNeed, 1)));
+      const powerUtility = clamp(power / Math.max(ownPower * 1.8, 1));
+      const score = qualified
+        ? .42 * ourUtility + .28 * theirUtility + .18 * fairness + .12 * powerUtility
+        : .48 * ourUtility + .30 * theirUtility + .14 * fairness + .08 * powerUtility;
+
+      return {
+        ...p,
+        power,
+        need: theirNeed,
+        ourUtility,
+        theirUtility,
+        available,
+        mutualQualifier,
+        strategicFit: Math.round(score * 100),
+        dominated: false,
+        userScoreAfter,
+        userRankAfter,
+        userRankGain,
+        candidateScoreAfter,
+        candidateRankAfter,
+        candidateRankGain,
+        helpsThemCross,
+        canMoveUsAcross,
+        returnRatio: power / Math.max(ownPower, 1),
+      };
+    })
+    .filter(c => c.available && (qualified ? c.userRankGain > 0 : (c.power > 0 || c.theirUtility > 0)));
+
+  candidates = candidates.map(c => ({
+    ...c,
+    dominated: candidates.some(a =>
+      a.username !== c.username &&
+      a.userRankGain >= c.userRankGain &&
+      a.theirUtility >= c.theirUtility &&
+      a.power >= c.power &&
+      (a.userRankGain > c.userRankGain || a.theirUtility > c.theirUtility || a.power > c.power)
+    ),
+  })).sort((a,b) =>
+    Number(b.helpsThemCross) - Number(a.helpsThemCross) ||
+    b.strategicFit - a.strategicFit ||
+    b.userRankGain - a.userRankGain ||
+    b.power - a.power
+  );
+
+  const actionable = candidates.filter(c => !c.dominated);
+  const peopleWhoNeedYou = candidates.filter(c => c.need > 0 && c.need <= ownPower);
+  const reciprocal = peopleWhoNeedYou.filter(c => qualified ? c.power > 0 : c.power >= need);
+  const remaining = user.vouchesRemaining ?? Math.max(0, (snapshot.vouchLimit ?? GAME.defaultVouches) - (user.vouchersUsed ?? 0));
+  const topAsk = actionable[0] ?? candidates[0];
+
+  const top1000 = snapshot.participants.filter(p => p.rank <= 1000);
+  const top1000Total = top1000.reduce((sum,p) => sum + p.totalScore, 0);
+  const scoreShare = top1000Total > 0 ? user.totalScore / top1000Total : 0;
+  const vouchPowers = snapshot.participants.map(p => p.baseScore * GAME.vouchRate).sort((a,b) => a-b);
+  const atOrBelow = vouchPowers.filter(power => power <= ownPower).length;
+  const vouchPercentile = vouchPowers.length ? Math.round(atOrBelow / vouchPowers.length * 100) : 0;
+
+  const thresholds = [50000, 75000, 100000, 150000].map(amount => ({
+    amount,
+    count: peopleWhoNeedYou.filter(c => c.power >= amount).length,
+  }));
+
   return {
-    user,target,ownPower,need,remaining,reservationValue,candidates,actionable,
-    whoNeeds: candidates.filter(c=>c.need>0&&c.need<=ownPower).length,
-    reciprocal: candidates.filter(c=>c.need>0&&c.need<=ownPower&&c.power>=need).length,
-    decision: hold ? {type:'HOLD' as const,title:'Preserve your optionality',inbound:0,rank:user.rank,margin:user.totalScore-target,candidate:undefined} : {type:'DIRECT' as const,title:`Reciprocal with @${best.username}`,inbound:best.power,rank:rankAfter(user.totalScore+best.power),margin:user.totalScore+best.power-target,candidate:best},
+    user,
+    target,
+    ownPower,
+    need,
+    qualified,
+    remaining,
+    candidates,
+    actionable,
+    topAsk,
+    whoNeeds: peopleWhoNeedYou.length,
+    reciprocal: reciprocal.length,
+    ladder,
+    nextTargetRank,
+    nextTargetScore,
+    nextTargetGap,
+    scoreShare,
+    vouchPercentile,
+    thresholds,
+    rankAfter,
   };
 }
