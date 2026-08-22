@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - debug/commons-live-feed
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -17,7 +20,6 @@ jobs:
           node-version: '20'
       - name: Install Playwright
         run: |
-          npm init -y >/dev/null 2>&1 || true
           npm install playwright@1.55.0
           npx playwright install chromium --with-deps
       - name: Capture Commons requests
@@ -34,7 +36,7 @@ jobs:
             const ct=(res.headers()['content-type']||'').toLowerCase();
             if (req.resourceType()==='xhr' || req.resourceType()==='fetch' || ct.includes('json')) {
               let text='';
-              try { text=(await res.text()).slice(0,20000); } catch {}
+              try { text=(await res.text()).slice(0,50000); } catch {}
               out.push({status:res.status(),method:req.method(),type:req.resourceType(),url,contentType:ct,body:text});
             }
           });
@@ -42,13 +44,13 @@ jobs:
           console.log('PAGE_STATUS',r?.status());
           await page.waitForTimeout(15000);
           console.log('TITLE',await page.title());
-          console.log('BODY_TEXT\n', (await page.locator('body').innerText()).slice(0,20000));
+          console.log('BODY_TEXT\n', (await page.locator('body').innerText()).slice(0,30000));
           fs.writeFileSync('/tmp/requests.json',JSON.stringify(out,null,2));
           console.log('REQUEST_COUNT',out.length);
           for (const x of out) {
             console.log('\n---REQUEST---');
             console.log(x.status,x.method,x.type,x.url,x.contentType);
-            console.log(x.body.slice(0,4000));
+            console.log(x.body.slice(0,10000));
           }
           await page.screenshot({path:'/tmp/commons.png',fullPage:true});
           await browser.close();
