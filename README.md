@@ -12,6 +12,10 @@ The source is cached for five minutes by Next.js. Browser requests use the serve
 
 Connect a Vercel KV/Upstash REST database with `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Successful live fetches append participant count, cutoff, and selected leaderboard values to `commons:gto:snapshots`. Without the binding the app truthfully reports insufficient history and does not project a cutoff.
 
+## Countdown
+
+`NEXT_PUBLIC_COMMONS_CLOSE_AT` (ISO 8601) sets the official end of the Commons experiment and drives the countdown clock; until it is set the UI truthfully shows "CLOSE TIME TBC". `NEXT_PUBLIC_COMMONS_OPEN_AT` is optional — together with the close time it drives the draining time ring around the pool visualization. Both are build-time `NEXT_PUBLIC_*` variables, so redeploy after changing them.
+
 ## Development
 
 ```bash
