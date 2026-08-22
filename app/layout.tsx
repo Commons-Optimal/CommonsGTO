@@ -3,6 +3,7 @@ import './globals.css';
 import './gto-v2.css';
 import './gto-v3.css';
 import './match.css';
+import './match-home.css';
 
 export const metadata: Metadata = {
   title: 'Commons GTO — Vouch / Pass',
