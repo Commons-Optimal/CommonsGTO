@@ -99,11 +99,18 @@ async function getEvent() {
 
 export async function getCommonsMeta(): Promise<CommonsMeta> {
   const [version, event] = await Promise.all([getVersion(), getEvent()]);
-  const cutoffPage = await officialJson<LeaderboardResponse>(pagePath(GAME.targetRank - 1, 1, version.board_version!), 10);
-  const cutoffRank1000 = num(cutoffPage.entries?.[0]?.total_points);
+  const ranks = [500, 750, 900, 1000];
+  const pages = await Promise.all(ranks.map(rank => officialJson<LeaderboardResponse>(pagePath(rank - 1, 1, version.board_version!), 10)));
+  const rankScores: Record<number, number> = {};
+  ranks.forEach((rank, index) => {
+    const score = num(pages[index]?.entries?.[0]?.total_points);
+    if (score !== undefined) rankScores[rank] = score;
+  });
+  const cutoffRank1000 = rankScores[GAME.targetRank];
   if (cutoffRank1000 === undefined) throw new CommonsDataError('Commons did not return rank 1000.');
   return {
     cutoffRank1000,
+    rankScores,
     totalParticipants: num(version.total_participants),
     totalEntries: num(version.total_entries),
     boardVersion: num(version.board_version),
@@ -134,12 +141,18 @@ export async function getCommonsSnapshot(): Promise<CommonsSnapshot> {
     .sort((a, b) => a.rank - b.rank);
 
   if (!participants.length) throw new CommonsDataError('Commons returned no joined participants.');
+  const rankScores: Record<number, number> = {};
+  for (const rank of [500, 750, 900, 1000]) {
+    const participant = participants.find(p => p.rank === rank);
+    if (participant) rankScores[rank] = participant.totalScore;
+  }
   const cutoffParticipant = participants.find(p => p.rank === GAME.targetRank);
   if (!cutoffParticipant) throw new CommonsDataError('Commons snapshot does not contain rank 1000.');
 
   const snapshot: CommonsSnapshot = {
     participants,
     cutoffRank1000: cutoffParticipant.totalScore,
+    rankScores,
     totalParticipants: num(version.total_participants),
     totalEntries: num(version.total_entries),
     boardVersion: num(version.board_version),
