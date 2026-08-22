@@ -6,6 +6,6 @@ export function Search({compact=false}:{compact?:boolean}){
  function go(e:FormEvent){e.preventDefault(); const clean=name.trim().replace(/^@/,''); if(clean) router.push('/'+encodeURIComponent(clean));}
  return <form className={`search ${compact?'compact':''}`} onSubmit={go}>
   <span aria-hidden="true">@</span><input aria-label="X username" value={name} onChange={e=>setName(e.target.value)} placeholder="username" autoCapitalize="none" />
-  <button type="submit">Analyse position <b>↗</b></button>
+  <button type="submit">CHECK MY POSITION <b>↗</b></button>
  </form>
 }
