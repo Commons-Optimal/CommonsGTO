@@ -1,0 +1,24 @@
+name: Probe Commons ledgers
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe ledger and feed endpoints
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/ledger-probe
+          base='https://api.commonsmade.com/game/events/genesis'
+          uid='c665a7cf-2b83-4323-b4c1-fb40bad01cec'
+          curl -L --compressed -A 'Mozilla/5.0' -sS -D /tmp/ledger-probe/participant.headers "$base/participants/$uid/ledger" -o /tmp/ledger-probe/participant.json
+          curl -L --compressed -A 'Mozilla/5.0' -sS -D /tmp/ledger-probe/target.headers "$base/targets/CyphrGM/ledger" -o /tmp/ledger-probe/target.json
+          curl -L --compressed -A 'Mozilla/5.0' -sS -D /tmp/ledger-probe/feed.headers "$base/feed?limit=20" -o /tmp/ledger-probe/feed.json
+          for f in /tmp/ledger-probe/*; do echo "=== $f ==="; cat "$f"; echo; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commons-ledger-probe
+          path: /tmp/ledger-probe
