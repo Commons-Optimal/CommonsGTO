@@ -10,32 +10,24 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe ledger and feed endpoints
+      - name: Inspect Commons activity endpoints
         run: |
           set -euxo pipefail
           mkdir -p /tmp/ledger-probe
-          base='https://api.commonsmade.com/game/events/genesis'
-          uid='c665a7cf-2b83-4323-b4c1-fb40bad01cec'
-          curl -L --compressed -A 'Mozilla/5.0' -sS "$base/participants/$uid/ledger" -o /tmp/ledger-probe/participant.json
-          curl -L --compressed -A 'Mozilla/5.0' -sS "$base/feed?limit=100" -o /tmp/ledger-probe/feed100.json
-          curl -L --compressed -A 'Mozilla/5.0' -sS "$base/feed?limit=100&offset=100" -o /tmp/ledger-probe/feed100offset.json
-          curl -L --compressed -A 'Mozilla/5.0' -sS "$base/feed?limit=50&author_handle=onchainmo" -o /tmp/ledger-probe/feed-author.json
-          curl -L --compressed -A 'Mozilla/5.0' -sS "$base/feed?limit=50&target_handle=CyphrGM" -o /tmp/ledger-probe/feed-target.json
-          curl -L --compressed -A 'Mozilla/5.0' -sS "$base/feed?limit=50&kind=vouch" -o /tmp/ledger-probe/feed-kind.json
+          curl -L --compressed -A 'Mozilla/5.0' -sS 'https://commonsmade.com/vouch' -o /tmp/ledger-probe/page.html
+          asset=$(grep -oE 'src="/assets/index-[^"]+\.js"' /tmp/ledger-probe/page.html | head -1 | cut -d'"' -f2)
+          echo "ASSET=$asset"
+          curl -L --compressed -A 'Mozilla/5.0' -sS "https://commonsmade.com$asset" -o /tmp/ledger-probe/app.js
           python - <<'PY'
-          import json,glob,os
-          for path in sorted(glob.glob('/tmp/ledger-probe/*.json')):
-              try:
-                  d=json.load(open(path))
-              except Exception as e:
-                  print(path,'ERR',e); continue
-              es=d.get('entries',[]) if isinstance(d,dict) else []
-              print('\n===',os.path.basename(path),'===')
-              print('keys', list(d.keys()) if isinstance(d,dict) else type(d))
-              print('count',len(es),'board_version',d.get('board_version') if isinstance(d,dict) else None)
-              for e in es[:8]:
-                  t=e.get('target') or {}
-                  print(e.get('kind'),e.get('author_handle'),'->',t.get('x_handle'),e.get('points'),e.get('tweet_created_at'))
+          import re
+          s=open('/tmp/ledger-probe/app.js',errors='ignore').read()
+          terms=['/feed','/ledger','author_handle','target_handle','outgoing','vouchesRemaining','vouch_total','participants/','targets/']
+          for term in terms:
+              print('\n###',term)
+              for m in list(re.finditer(re.escape(term),s))[:20]:
+                  a=max(0,m.start()-500); b=min(len(s),m.end()+800)
+                  print(s[a:b].replace('\n',' ')[:1400])
+                  print('\n---')
           PY
       - uses: actions/upload-artifact@v4
         with:
