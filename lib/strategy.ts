@@ -31,7 +31,7 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
   const nextTargetScore = snapshot.participants.find(p => p.rank === nextTargetRank)?.totalScore;
   const nextTargetGap = nextTargetScore ? Math.max(0, nextTargetScore - user.totalScore) : undefined;
 
-  let candidates: MarketCandidate[] = snapshot.participants
+  const allCandidates: MarketCandidate[] = snapshot.participants
     .filter(p => p.username.toLowerCase() !== user.username.toLowerCase())
     .map(p => {
       const power = p.baseScore * GAME.vouchRate;
@@ -79,9 +79,9 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
         canMoveUsAcross,
         returnRatio: power / Math.max(ownPower, 1),
       };
-    })
-    .filter(c => c.available && (qualified ? c.userRankGain > 0 : (c.power > 0 || c.theirUtility > 0)));
+    });
 
+  let candidates = allCandidates.filter(c => c.available && (qualified ? c.userRankGain > 0 : (c.power > 0 || c.theirUtility > 0)));
   candidates = candidates.map(c => ({
     ...c,
     dominated: candidates.some(a =>
@@ -92,14 +92,14 @@ export function analyseMarket(snapshot: CommonsSnapshot, username: string) {
       (a.userRankGain > c.userRankGain || a.theirUtility > c.theirUtility || a.power > c.power)
     ),
   })).sort((a,b) =>
-    Number(b.helpsThemCross) - Number(a.helpsThemCross) ||
     b.strategicFit - a.strategicFit ||
+    Number(b.helpsThemCross) - Number(a.helpsThemCross) ||
     b.userRankGain - a.userRankGain ||
     b.power - a.power
   );
 
   const actionable = candidates.filter(c => !c.dominated);
-  const peopleWhoNeedYou = candidates.filter(c => c.need > 0 && c.need <= ownPower);
+  const peopleWhoNeedYou = allCandidates.filter(c => c.available && c.need > 0 && c.need <= ownPower);
   const reciprocal = peopleWhoNeedYou.filter(c => qualified ? c.power > 0 : c.power >= need);
   const remaining = user.vouchesRemaining ?? Math.max(0, (snapshot.vouchLimit ?? GAME.defaultVouches) - (user.vouchersUsed ?? 0));
   const topAsk = actionable[0] ?? candidates[0];
