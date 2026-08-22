@@ -10,26 +10,30 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect Commons activity endpoints
+      - name: Probe historical feed access
         run: |
           set -euxo pipefail
           mkdir -p /tmp/ledger-probe
-          curl -L --compressed -A 'Mozilla/5.0' -sS 'https://commonsmade.com/vouch' -o /tmp/ledger-probe/page.html
-          asset=$(grep -oE 'src="/assets/index-[^"]+\.js"' /tmp/ledger-probe/page.html | head -1 | cut -d'"' -f2)
-          echo "ASSET=$asset"
-          curl -L --compressed -A 'Mozilla/5.0' -sS "https://commonsmade.com$asset" -o /tmp/ledger-probe/app.js
+          base='https://api.commonsmade.com/game/events/genesis'
+          for q in \
+            'feed?sort=latest&limit=100' \
+            'feed?sort=latest&limit=1000' \
+            'feed?sort=latest&limit=100&board_version=9000' \
+            'feed?sort=latest&limit=100&board_version=8500' \
+            'feed?sort=oldest&limit=100'; do
+            name=$(echo "$q" | tr '?&=' '____')
+            curl -L --compressed -A 'Mozilla/5.0' -sS "$base/$q" -o "/tmp/ledger-probe/$name.json"
+          done
           python - <<'PY'
-          import re
-          s=open('/tmp/ledger-probe/app.js',errors='ignore').read()
-          terms=['/feed','/ledger','author_handle','target_handle','outgoing','vouchesRemaining','vouch_total','participants/','targets/']
-          for term in terms:
-              print('\n###',term)
-              for m in list(re.finditer(re.escape(term),s))[:20]:
-                  a=max(0,m.start()-500); b=min(len(s),m.end()+800)
-                  print(s[a:b].replace('\n',' ')[:1400])
-                  print('\n---')
+          import json,glob,os
+          for path in sorted(glob.glob('/tmp/ledger-probe/*.json')):
+              d=json.load(open(path)); es=d.get('entries',[])
+              print('\n===',os.path.basename(path),'===')
+              print('count',len(es),'board_version',d.get('board_version'),'sort',d.get('sort'))
+              if es:
+                  print('first',es[0].get('tweet_id'),es[0].get('tweet_created_at'),es[0].get('author_handle'))
+                  print('last ',es[-1].get('tweet_id'),es[-1].get('tweet_created_at'),es[-1].get('author_handle'))
+                  cy=[e for e in es if (e.get('author_handle') or '').lower()=='cyphrgm']
+                  print('CyphrGM outgoing in response',len(cy))
+                  for e in cy: print(e.get('kind'),(e.get('target') or {}).get('x_handle'),e.get('points'),e.get('tweet_created_at'))
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: commons-ledger-probe
-          path: /tmp/ledger-probe
