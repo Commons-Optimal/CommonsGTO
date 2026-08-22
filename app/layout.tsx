@@ -4,10 +4,11 @@ import './gto-v2.css';
 import './gto-v3.css';
 import './match.css';
 import './match-home.css';
+import './match-premium.css';
 
 export const metadata: Metadata = {
-  title: 'Commons GTO — Vouch / Pass',
-  description: 'Swipe Commons players. Match when both sides want the vouch.',
+  title: 'Commons Match — Vouch / Pass',
+  description: 'Swipe Commons players. A mutual vouch opens the deal.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
