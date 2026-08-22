@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import './globals.css';
 import './gto-v2.css';
 import './gto-v3.css';
+import './match.css';
 
 export const metadata: Metadata = {
-  title: 'Commons GTO',
-  description: 'Live Commons ranks, vouch values, network paths and trade outcomes.',
+  title: 'Commons GTO — Vouch / Pass',
+  description: 'Swipe Commons players. Match when both sides want the vouch.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
