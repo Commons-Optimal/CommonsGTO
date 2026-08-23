@@ -51,6 +51,9 @@
 .clock-progress{fill:none;stroke:var(--acid);stroke-width:5;transition:stroke-dasharray 1s linear;animation:ringBreathe 5s ease-in-out infinite}
 @keyframes ringBreathe{0%,100%{filter:drop-shadow(0 0 7px rgba(201,255,112,.3))}50%{filter:drop-shadow(0 0 18px rgba(201,255,112,.6))}}
 .clock-progress.idle{opacity:.45;animation:pulse 3s ease-in-out infinite}
+.clock-second{transform-box:view-box;transform-origin:50% 50%;animation:secondSweep 60s linear infinite}
+.clock-second circle{fill:var(--chalk);filter:drop-shadow(0 0 8px rgba(245,241,230,.85))}
+@keyframes secondSweep{to{transform:rotate(360deg)}}
 .pool-slice{transition:opacity .5s,filter .5s}.pool-slice.is-dim{opacity:.32}.pool-slice.is-you{stroke:var(--chalk);stroke-width:2.5;filter:drop-shadow(0 0 22px rgba(201,255,112,.55))}
 .pool-empty-ring{fill:none;stroke:rgba(201,255,112,.35);stroke-width:94;stroke-dasharray:3 12}
 .pool-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:0 20%}

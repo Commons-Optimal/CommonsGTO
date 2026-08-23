@@ -14,7 +14,7 @@ Connect a Vercel KV/Upstash REST database with `KV_REST_API_URL` and `KV_REST_AP
 
 ## Countdown
 
-`NEXT_PUBLIC_COMMONS_CLOSE_AT` (ISO 8601) sets the official end of the Commons experiment and drives the countdown clock; until it is set the UI truthfully shows "CLOSE TIME TBC". `NEXT_PUBLIC_COMMONS_OPEN_AT` is optional — together with the close time it drives the draining time ring around the pool visualization. Both are build-time `NEXT_PUBLIC_*` variables, so redeploy after changing them.
+`NEXT_PUBLIC_COMMONS_CLOSE_AT` (ISO 8601) sets the official end of the Commons experiment and drives the countdown clock; until it is set the UI truthfully shows "CLOSE TIME TBC". The time ring around the pool is scaled to the final stretch — the last 7 days, switching to the last 24 hours inside a day — so it stays legible and visibly moves at the end of the experiment; it does not depend on a start date. `NEXT_PUBLIC_COMMONS_OPEN_AT` remains optional and is no longer required. Both are build-time `NEXT_PUBLIC_*` variables, so redeploy after changing them.
 
 ## Development
 

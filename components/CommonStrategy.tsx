@@ -18,7 +18,6 @@ const clean=(s:string)=>s.replace(/^@/,'').trim().toLowerCase();
 const two=(n:number)=>String(Math.max(0,n)).padStart(2,'0');
 
 const CLOSE_AT=process.env.NEXT_PUBLIC_COMMONS_CLOSE_AT;
-const OPEN_AT=process.env.NEXT_PUBLIC_COMMONS_OPEN_AT;
 
 // Five named slices, validated for adjacent-pair separation on the dark surface
 // (worst adjacent ΔE 15.9 normal / 15.0 CVD). The old smooth green ramp sat at
@@ -52,20 +51,31 @@ function useNow(){
   return now;
 }
 
-type CountdownParts={days:string;hours:string;minutes:string;seconds:string;label:string;closed:boolean;known:boolean;remainFrac:number|null};
-function useCountdown(closeIso?:string,openIso?:string):CountdownParts{
+const DAY_MS=864e5;
+type CountdownParts={days:string;hours:string;minutes:string;seconds:string;label:string;closed:boolean;known:boolean;ringFrac:number|null;ringLabel:string};
+
+/** The ring is scaled to the FINAL STRETCH, not the whole experiment. Measured
+ *  against a ~57-day window the last two days are a 3% stub that moves 0.01
+ *  points every 8 minutes — visibly frozen. This also drops the dependency on a
+ *  fuzzily-discovered start date. */
+function ringScale(remaining:number){
+  return remaining<=DAY_MS
+    ? {windowMs:DAY_MS,ringLabel:'FINAL 24 HOURS'}
+    : {windowMs:7*DAY_MS,ringLabel:'FINAL 7 DAYS'};
+}
+
+function useCountdown(closeIso?:string):CountdownParts{
   const now=useNow();
   return useMemo(()=>{
     const close=closeIso?Date.parse(closeIso):NaN;
-    if(!Number.isFinite(close))return {days:'--',hours:'--',minutes:'--',seconds:'--',label:'CLOSE TIME TBC',closed:false,known:false,remainFrac:null};
-    if(now===null)return {days:'--',hours:'--',minutes:'--',seconds:'--',label:'SYNCING CLOCK',closed:false,known:true,remainFrac:null};
+    if(!Number.isFinite(close))return {days:'--',hours:'--',minutes:'--',seconds:'--',label:'CLOSE TIME TBC',closed:false,known:false,ringFrac:null,ringLabel:'TIME LEFT'};
+    if(now===null)return {days:'--',hours:'--',minutes:'--',seconds:'--',label:'SYNCING CLOCK',closed:false,known:true,ringFrac:null,ringLabel:'TIME LEFT'};
     const remaining=close-now;
-    if(remaining<=0)return {days:'00',hours:'00',minutes:'00',seconds:'00',label:'EXPERIMENT CLOSED',closed:true,known:true,remainFrac:0};
+    if(remaining<=0)return {days:'00',hours:'00',minutes:'00',seconds:'00',label:'EXPERIMENT CLOSED',closed:true,known:true,ringFrac:0,ringLabel:'TIME LEFT'};
     const s=Math.floor(remaining/1000);
-    const open=openIso?Date.parse(openIso):NaN;
-    const remainFrac=Number.isFinite(open)&&close>open?Math.min(1,Math.max(0,remaining/(close-open))):null;
-    return {days:two(Math.floor(s/86400)),hours:two(Math.floor(s/3600)%24),minutes:two(Math.floor(s/60)%60),seconds:two(s%60),label:'UNTIL THE FINAL SNAPSHOT',closed:false,known:true,remainFrac};
-  },[now,closeIso,openIso]);
+    const {windowMs,ringLabel}=ringScale(remaining);
+    return {days:two(Math.floor(s/86400)),hours:two(Math.floor(s/3600)%24),minutes:two(Math.floor(s/60)%60),seconds:two(s%60),label:'UNTIL THE FINAL SNAPSHOT',closed:false,known:true,ringFrac:Math.min(1,remaining/windowMs),ringLabel};
+  },[now,closeIso]);
 }
 
 function Reveal({children,className=''}:{children:ReactNode;className?:string}){
@@ -124,9 +134,14 @@ function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyS
       {MOTES.map((angle,i)=><span key={angle} className="pool-mote" style={{'--a':`${angle}deg`,'--d':`${(i%5)*1.4}s`,'--t':`${5.5+(i%4)*1.3}s`} as CSSProperties} aria-hidden="true"><i/></span>)}
       <svg className="pool-ring" viewBox="0 0 640 640" role="img" aria-label="Ownership of the vouch pool, and time remaining in the experiment">
         <circle cx="320" cy="320" r="308" className="clock-track"/>
-        {countdown.remainFrac!==null
-          ?<circle cx="320" cy="320" r="308" className="clock-progress" pathLength={100} strokeDasharray={`${(countdown.remainFrac*100).toFixed(2)} 100`} transform="rotate(-90 320 320)"/>
+        {countdown.ringFrac!==null
+          // 4dp so the arc steps sub-second and the 1s linear transition reads
+          // as continuous motion rather than an 8-minute jump.
+          ?<circle cx="320" cy="320" r="308" className="clock-progress" pathLength={100} strokeDasharray={`${(countdown.ringFrac*100).toFixed(4)} 100`} transform="rotate(-90 320 320)"/>
           :<circle cx="320" cy="320" r="308" className="clock-progress idle" pathLength={100} strokeDasharray="100 100" transform="rotate(-90 320 320)"/>}
+        {/* A once-a-minute sweep: liveness the eye can actually catch, independent
+            of how slowly the depletion arc moves. */}
+        {!countdown.closed&&<g className="clock-second"><circle cx="320" cy="12" r="4.5"/></g>}
         <g className="pool-slices">
           {segments.length
             ?segments.map(segment=>{
@@ -208,7 +223,7 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
   const inFlight=useRef(false);
   const latestSeq=useRef(0);
   const failures=useRef(0);
-  const countdown=useCountdown(state?.closesAt??CLOSE_AT,state?.opensAt??OPEN_AT);
+  const countdown=useCountdown(state?.closesAt??CLOSE_AT);
 
   useEffect(()=>{
     let cancelled=false;
@@ -324,7 +339,7 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
           <div><span>PLEDGED</span><b className="acid">100%</b></div>
           <div><span>TIME LEFT</span><b>{countdown.closed?'CLOSED':countdown.known?`${countdown.days}D ${countdown.hours}H ${countdown.minutes}M`:'TBC'}</b></div>
         </div>
-        <div className="rail-note">OUTER RING = TIME LEFT{countdown.remainFrac!==null?` (${Math.round(countdown.remainFrac*100)}%)`:''}<br/>INNER SLICES = SHARE OF THE VOUCH POOL</div>
+        <div className="rail-note">OUTER RING = {countdown.ringLabel}{countdown.ringFrac!==null?` (${(countdown.ringFrac*100).toFixed(1)}%)`:''}<br/>INNER SLICES = SHARE OF THE VOUCH POOL</div>
       </aside>
 
       <PoolRing state={state} countdown={countdown} highlight={highlight} rippleKey={rippleKey} status={status}/>
