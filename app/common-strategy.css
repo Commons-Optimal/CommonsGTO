@@ -1,8 +1,8 @@
 /* Common Strategy — "The Pool" interface. One living ring: countdown drains outside, ownership slices inside. */
-:root{color-scheme:dark}html{scroll-behavior:smooth;background:#060907}body{margin:0;background:#060907}::selection{background:#c9ff70;color:#0a0d0a}
+:root{color-scheme:dark}html{scroll-behavior:smooth;background:#060907}body{margin:0;background:#060907;color:#f5f1e6;font-family:var(--font-sans),Arial,sans-serif}::selection{background:#c9ff70;color:#0a0d0a}
 
 .pool-app{--night:#060907;--panel:#0b110d;--panel-2:#0d1510;--chalk:#f5f1e6;--body:#c2cdc5;--muted:#a7b4aa;--acid:#c9ff70;--acid-dim:rgba(201,255,112,.12);--coral:#f47b62;--line:rgba(243,239,226,.14);--line-strong:rgba(243,239,226,.25);--gutter:max(clamp(20px,3.2vw,52px),calc((100vw - 1760px)/2));--display:var(--font-display),Georgia,serif;--sans:var(--font-sans),Arial,sans-serif;--mono:var(--font-mono),monospace;min-height:100vh;overflow-x:clip;background:radial-gradient(circle at 50% 22%,#0e1a12 0,#080d09 46%,#060907 100%);color:var(--chalk);font-family:var(--sans)}
-.pool-app *{box-sizing:border-box}.pool-app a{color:inherit;text-decoration:none}.pool-app button,.pool-app input{font:inherit}
+*{box-sizing:border-box}.pool-app a{color:inherit;text-decoration:none}.pool-app button,.pool-app input{font:inherit}
 .pool-app :is(a,button,input):focus-visible{outline:2px solid var(--acid);outline-offset:4px}
 .skip-link{position:fixed;left:18px;top:14px;z-index:3000;padding:12px 16px;background:var(--acid);color:#0a0d0a!important;font:700 10px/1 var(--mono);letter-spacing:.08em;transform:translateY(-180%);transition:transform .2s}.skip-link:focus{transform:translateY(0)}
 .section-code{font:600 11px/1.2 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acid)}
@@ -33,7 +33,10 @@
 .flow-list{display:flex;flex-direction:column}
 .flow-list>a{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(243,239,226,.09);transition:background .2s;animation:flowIn .55s cubic-bezier(.16,.84,.2,1) both}.flow-list>a:hover{background:rgba(201,255,112,.04)}
 @keyframes flowIn{from{opacity:0;transform:translateY(-9px)}to{opacity:1;transform:none}}
-.flow-who{display:flex;align-items:center;gap:10px;min-width:0;font:600 14px var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.flow-who img,.flow-who i{flex:none;width:26px;height:26px;border-radius:50%;object-fit:cover;background:#1a2a1e}
+/* Handles wrap rather than truncate. text-overflow never fired here anyway --
+   this is a flex container, not a block -- so a long handle was hard-cut
+   mid-glyph with no ellipsis to show for it. */
+.flow-who{display:flex;align-items:center;gap:10px;min-width:0;font:600 14px var(--sans);overflow-wrap:anywhere}.flow-who img,.flow-who i{flex:none;width:26px;height:26px;border-radius:50%;object-fit:cover;background:#1a2a1e}
 .flow-list time{font:500 10px var(--mono);color:var(--muted)}.flow-list b{font:600 15px var(--mono);color:var(--acid)}.flow-list a.is-slash b{color:var(--coral)}
 .flow-empty{display:flex;flex-direction:column;align-items:center;gap:14px;padding:38px 0;text-align:center}.flow-empty .treasury-seal{width:44px;height:44px;opacity:.6}.flow-empty span{font:600 10px/1.7 var(--mono);letter-spacing:.08em;color:var(--muted)}
 
@@ -156,7 +159,7 @@
 .cap-row{min-height:66px;padding:10px;border-bottom:1px solid rgba(243,239,226,.09);transition:background .2s,transform .2s}.cap-row:hover{background:rgba(201,255,112,.04);transform:translateX(3px)}
 .cap-row.is-you{background:rgba(201,255,112,.07);box-shadow:inset 3px 0 0 var(--acid)}
 .row-idx{font:600 11px var(--mono);color:var(--muted)}
-.row-owner{display:flex;align-items:center;gap:12px;min-width:0;font:600 15px var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row-owner img,.row-owner i{flex:none;width:32px;height:32px;border-radius:50%;object-fit:cover;background:#1a2a1e}
+.row-owner{display:flex;align-items:center;gap:12px;min-width:0;font:600 15px var(--sans);overflow-wrap:anywhere}.row-owner img,.row-owner i{flex:none;width:32px;height:32px;border-radius:50%;object-fit:cover;background:#1a2a1e}
 .row-points{font:500 13px var(--mono);color:var(--body)}
 .row-bar{height:8px;background:#141f17;overflow:hidden}.row-bar i{display:block;height:100%;transition:width .9s cubic-bezier(.16,.84,.2,1)}
 .row-share{font:600 16px var(--mono);color:var(--acid);text-align:right}
@@ -193,13 +196,11 @@
   .slice-result{max-width:520px}
 }
 /* Between the phone layout and a wide desktop the register's owner column is
-   squeezed to ~117px, which truncated any handle over ~10 characters. Drop the
-   relative-points sparkline first, and let a very long handle wrap rather than
-   be cut. */
+   squeezed to ~117px, which wrapped even short handles onto two lines. Drop the
+   relative-points sparkline first: it is the least informative column. */
 @media(max-width:940px){
   .cap-list-head,.cap-row{grid-template-columns:48px minmax(0,1.4fr) 130px 110px}
   .cap-list-head span:nth-child(4),.row-bar{display:none}
-  .row-owner,.flow-who{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 }
 @media(max-width:680px){
   .pool-header{grid-template-columns:auto 1fr;height:64px;padding:0 18px;gap:12px}
@@ -227,7 +228,7 @@
   .cap-list-head{display:none}
   .cap-list-head,.cap-row{grid-template-columns:26px minmax(0,1fr) auto;gap:10px}
   .cap-row{padding:10px 0}
-  .row-owner{gap:8px;font-size:14px;line-height:1.25;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+  .row-owner{gap:8px;font-size:14px;line-height:1.25}
   .row-owner img,.row-owner i{width:26px;height:26px}
   .row-share{font-size:14px}
   .row-points,.row-bar{display:none}

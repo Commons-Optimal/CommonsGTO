@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Bodoni_Moda, IBM_Plex_Mono, Manrope } from 'next/font/google';
-import './globals.css';
 import './common-strategy.css';
 
 const display = Bodoni_Moda({
