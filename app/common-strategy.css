@@ -1,7 +1,7 @@
 /* Common Strategy — "The Pool" interface. One living ring: countdown drains outside, ownership slices inside. */
 :root{color-scheme:dark}html{scroll-behavior:smooth;background:#060907}body{margin:0;background:#060907}::selection{background:#c9ff70;color:#0a0d0a}
 
-.pool-app{--night:#060907;--panel:#0b110d;--panel-2:#0d1510;--chalk:#f5f1e6;--body:#c2cdc5;--muted:#a7b4aa;--acid:#c9ff70;--acid-dim:rgba(201,255,112,.12);--coral:#f47b62;--line:rgba(243,239,226,.14);--line-strong:rgba(243,239,226,.25);--gutter:max(clamp(20px,3.2vw,52px),calc((100vw - 1760px)/2));--display:var(--font-display),Georgia,serif;--sans:var(--font-sans),Arial,sans-serif;--mono:var(--font-mono),monospace;min-height:100vh;background:radial-gradient(circle at 50% 22%,#0e1a12 0,#080d09 46%,#060907 100%);color:var(--chalk);font-family:var(--sans)}
+.pool-app{--night:#060907;--panel:#0b110d;--panel-2:#0d1510;--chalk:#f5f1e6;--body:#c2cdc5;--muted:#a7b4aa;--acid:#c9ff70;--acid-dim:rgba(201,255,112,.12);--coral:#f47b62;--line:rgba(243,239,226,.14);--line-strong:rgba(243,239,226,.25);--gutter:max(clamp(20px,3.2vw,52px),calc((100vw - 1760px)/2));--display:var(--font-display),Georgia,serif;--sans:var(--font-sans),Arial,sans-serif;--mono:var(--font-mono),monospace;min-height:100vh;overflow-x:clip;background:radial-gradient(circle at 50% 22%,#0e1a12 0,#080d09 46%,#060907 100%);color:var(--chalk);font-family:var(--sans)}
 .pool-app *{box-sizing:border-box}.pool-app a{color:inherit;text-decoration:none}.pool-app button,.pool-app input{font:inherit}
 .pool-app :is(a,button,input):focus-visible{outline:2px solid var(--acid);outline-offset:4px}
 .skip-link{position:fixed;left:18px;top:14px;z-index:3000;padding:12px 16px;background:var(--acid);color:#0a0d0a!important;font:700 10px/1 var(--mono);letter-spacing:.08em;transform:translateY(-180%);transition:transform .2s}.skip-link:focus{transform:translateY(0)}
@@ -39,14 +39,18 @@
 
 /* The ring */
 .pool-ring-stage{display:flex;justify-content:center;min-width:0}
-.pool-ring-frame{position:relative;width:min(100%,600px);aspect-ratio:1;animation:frameFloat 11s ease-in-out infinite}
+.pool-ring-frame{position:relative;container-type:inline-size;width:min(100%,600px);aspect-ratio:1;animation:frameFloat 11s ease-in-out infinite}
 @keyframes frameFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
 .pool-ring{display:block;width:100%;height:100%}
 .pool-slices{animation:poolTurn 180s linear infinite;transform-box:view-box;transform-origin:50% 50%}
 @keyframes poolTurn{to{transform:rotate(360deg)}}
-.pool-mote{position:absolute;inset:0;transform:rotate(var(--a));pointer-events:none}
-.pool-mote i{position:absolute;top:50%;left:100%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--acid);opacity:0;box-shadow:0 0 10px rgba(201,255,112,.8);animation:moteIn var(--t) linear var(--d) infinite}
-@keyframes moteIn{0%{left:100%;opacity:0}14%{opacity:.85}72%{opacity:.6}100%{left:93.5%;opacity:0}}
+/* A zero-width spoke through the ring's centre, not a full-size rotated square.
+   A square rotated off-axis has a bounding box up to 1.41x its own width, so the
+   motes pushed the document ~39px past a phone viewport and the page scrolled
+   sideways. The dots' orbit and travel are unchanged. */
+.pool-mote{position:absolute;top:0;left:50%;width:0;height:100%;transform:rotate(var(--a));pointer-events:none}
+.pool-mote i{position:absolute;top:0;left:0;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--acid);opacity:0;box-shadow:0 0 10px rgba(201,255,112,.8);animation:moteIn var(--t) linear var(--d) infinite}
+@keyframes moteIn{0%{top:0;opacity:0}14%{opacity:.85}72%{opacity:.6}100%{top:6.5%;opacity:0}}
 .clock-track{fill:none;stroke:var(--acid-dim);stroke-width:5}
 .clock-progress{fill:none;stroke:var(--acid);stroke-width:5;transition:stroke-dasharray 1s linear;animation:ringBreathe 5s ease-in-out infinite}
 @keyframes ringBreathe{0%,100%{filter:drop-shadow(0 0 7px rgba(201,255,112,.3))}50%{filter:drop-shadow(0 0 18px rgba(201,255,112,.6))}}
@@ -56,12 +60,16 @@
 @keyframes secondSweep{to{transform:rotate(360deg)}}
 .pool-slice{transition:opacity .5s,filter .5s}.pool-slice.is-dim{opacity:.32}.pool-slice.is-you{stroke:var(--chalk);stroke-width:2.5;filter:drop-shadow(0 0 22px rgba(201,255,112,.55))}
 .pool-empty-ring{fill:none;stroke:rgba(201,255,112,.35);stroke-width:94;stroke-dasharray:3 12}
-.pool-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:0 20%}
-.pool-center-label{font:600 11px/1 var(--mono);letter-spacing:.22em;color:var(--muted)}
-.pool-center strong{font:600 clamp(40px,4.8vw,74px)/0.9 var(--mono);letter-spacing:-.05em;font-variant-numeric:tabular-nums}
-.pool-center-split{font:600 11px/1 var(--mono);letter-spacing:.08em;color:var(--acid)}
+/* The hole in the donut is 56.9% of the frame, so type sized against the viewport
+   overran it and printed over the coloured slices on phones. Every line is sized in
+   cqw against the ring itself, and --chars (set by the component) shrinks the
+   headline as the total gains digits instead of letting it overrun the hole. */
+.pool-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:min(12px,3cqw);text-align:center;padding:0 21%}
+.pool-center-label{font:600 11px/1 var(--mono);font-size:min(11px,2.6cqw);letter-spacing:.22em;color:var(--muted)}
+.pool-center strong{font:600 clamp(40px,4.8vw,74px)/0.9 var(--mono);font-size:min(74px,calc(84cqw / var(--chars,7)));letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.pool-center-split{font:600 11px/1 var(--mono);font-size:min(11px,2.5cqw);letter-spacing:.08em;color:var(--acid)}
 .pool-center-split i{font-style:normal;color:var(--muted)}
-.pool-center-sub{font:600 10px/1 var(--mono);letter-spacing:.1em;color:var(--muted)}
+.pool-center-sub{font:600 10px/1 var(--mono);font-size:min(10px,2.6cqw);letter-spacing:.1em;color:var(--muted)}
 .pool-center-seal{width:52px;height:52px;opacity:.85}
 .pool-center-first{font:600 10px/1.5 var(--mono);letter-spacing:.1em;color:var(--body)}
 .pool-ripple{position:absolute;inset:4.5%;border-radius:50%;border:2px solid var(--acid);pointer-events:none;animation:ripple 1.3s cubic-bezier(.16,.84,.2,1) forwards}
@@ -134,6 +142,8 @@
 .cap-head{display:flex;align-items:flex-end;justify-content:space-between;gap:40px;flex-wrap:wrap}
 .cap-total{display:flex;flex-direction:column;align-items:flex-end;gap:8px}.cap-total b{font:600 clamp(30px,3vw,44px)/0.85 var(--mono);letter-spacing:-.05em;color:var(--acid)}.cap-total span{font:600 10px var(--mono);letter-spacing:.1em;color:var(--muted);text-align:right}
 .cap-bar{height:48px;display:flex;gap:2px}
+.cap-bar-note{display:none;align-items:center;gap:9px;margin:11px 0 0;font:600 10px var(--mono);letter-spacing:.08em;color:var(--muted)}
+.cap-bar-note i{flex:none;width:11px;height:11px}
 .cap-segment{position:relative;display:flex;align-items:center;padding:0 11px;overflow:hidden;transition:filter .3s}
 .cap-segment span{font:600 10px var(--mono);letter-spacing:.02em;color:#0a0d0a;white-space:nowrap}
 .cap-segment .others{margin-left:auto;color:var(--body)}
@@ -182,14 +192,23 @@
   .slice-grid{grid-template-columns:1fr;gap:44px}
   .slice-result{max-width:520px}
 }
+/* Between the phone layout and a wide desktop the register's owner column is
+   squeezed to ~117px, which truncated any handle over ~10 characters. Drop the
+   relative-points sparkline first, and let a very long handle wrap rather than
+   be cut. */
+@media(max-width:940px){
+  .cap-list-head,.cap-row{grid-template-columns:48px minmax(0,1.4fr) 130px 110px}
+  .cap-list-head span:nth-child(4),.row-bar{display:none}
+  .row-owner,.flow-who{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+}
 @media(max-width:680px){
-  .pool-header{grid-template-columns:auto 1fr;height:64px;padding:0 16px;gap:12px}
-  .cs-identity>span{display:none}
-  .header-clock{justify-self:end;font-size:10px}
+  .pool-header{grid-template-columns:auto 1fr;height:64px;padding:0 18px;gap:12px}
+  .pool-header .cs-identity>span{display:none}
+  .pool-header{grid-template-columns:auto minmax(0,1fr)}
+  .header-clock{justify-self:end;min-width:0;font-size:10px;white-space:normal;text-align:right;line-height:1.3}
   .header-vouch{display:none}
   .pool-stage{padding:32px 18px}
-  .pool-center strong{font-size:11.5vw}
-  .pool-center-label{font-size:9px;letter-spacing:.16em}
+  .pool-center-label{letter-spacing:.16em}
   .pool-ticker{height:50px;top:64px}.ticker-set{height:50px}.ticker-set>span{padding:0 16px}.ticker-set b{font-size:14px}.ticker-set small{font-size:9px}
   .pool-stage{min-height:0}
   .slice-section,.cap-section,.pledge-section,.thesis-section{padding-left:18px;padding-right:18px}
@@ -204,14 +223,18 @@
   .cap-head{flex-direction:column;align-items:flex-start}.cap-total{align-items:flex-start}.cap-total span{text-align:left}
   .cap-bar{height:40px}
   .cap-segment span{display:none}
-  .cap-segment .others{display:block}
+  .cap-bar-note{display:flex}
   .cap-list-head{display:none}
-  .cap-list-head,.cap-row{grid-template-columns:34px minmax(0,1fr) 92px}
+  .cap-list-head,.cap-row{grid-template-columns:26px minmax(0,1fr) auto;gap:10px}
+  .cap-row{padding:10px 0}
+  .row-owner{gap:8px;font-size:14px;line-height:1.25;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+  .row-owner img,.row-owner i{width:26px;height:26px}
+  .row-share{font-size:14px}
   .row-points,.row-bar{display:none}
   .pledge-grid{grid-template-columns:1fr 1fr}
-  .pledge-grid>div:nth-child(3){border-left:0;border-top:1px solid rgba(243,239,226,.2)}
-  .pledge-grid>div:nth-child(4){border-top:1px solid rgba(243,239,226,.2)}
-  .pool-footer{grid-template-columns:1fr;justify-items:start;gap:12px}.pool-footer>a{justify-self:start}
+  .pledge-grid>div:nth-child(odd){border-left:0;padding-left:0}
+  .pledge-grid>div:nth-child(3),.pledge-grid>div:nth-child(4){border-top:1px solid rgba(243,239,226,.2)}
+  .pool-footer{grid-template-columns:1fr;justify-items:start;gap:12px;padding-left:18px;padding-right:18px}.pool-footer>a{justify-self:start}
 }
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}

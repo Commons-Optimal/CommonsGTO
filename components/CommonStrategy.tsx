@@ -166,7 +166,7 @@ function PoolRing({state,countdown,highlight,rippleKey,status}:{state?:StrategyS
       <div className="pool-center">
         {state?<>
           <span className="pool-center-label">COMMONS POINTS HELD</span>
-          <strong><AnimatedNumber value={state.totalPoints}/></strong>
+          <strong style={{'--chars':nf.format(Math.round(state.totalPoints)).length} as CSSProperties}><AnimatedNumber value={state.totalPoints}/></strong>
           {/* The slices divide the vouch pool, not the headline total — show the
               split so the two numbers visibly reconcile. */}
           <span className="pool-center-split">{nf.format(state.positiveVouchPoints)} POOLED <i>+</i> {nf.format(state.basePoints)} BASE</span>
@@ -303,6 +303,7 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
   const segments=buildSegments(state?.owners??[]);
   const capHighlightKey=resolveHighlight(segments,highlight);
   const owners=state?.owners??[];
+  const tail=segments.find(segment=>segment.isOthers);
   const visibleOwners=showAllOwners?owners:owners.slice(0,8);
   const topPoints=owners[0]?.points??0;
 
@@ -417,11 +418,14 @@ export function CommonStrategy({initial,error:initialError}:{initial?:StrategySt
         <div><span className="section-code">03 / THE CAP TABLE</span><h2>Ownership, <em>not followers.</em></h2></div>
         <div className="cap-total"><b>100.000%</b><span>{state?`VOUCHER OWNED · ${state.voucherCount} CURRENT OWNER${state.voucherCount===1?'':'S'}`:'WAITING FOR THE FIRST OWNER'}</span></div>
       </div>
-      {segments.length?<div className="cap-bar" role="img" aria-label="Share of the vouch pool by owner">
-        {segments.map(segment=><div key={segment.key} className={`cap-segment ${capHighlightKey&&segment.key===capHighlightKey?'is-you':''}`} style={{width:`${Math.max(segment.share*100,1)}%`,background:segment.color}}>
-          {segment.share>=0.1&&!segment.isOthers&&<span>{segment.label} {pct(segment.share,1)}</span>}
-          {segment.isOthers&&<span className="others">{segment.label} — {pct(segment.share,1)}</span>}
-        </div>)}
+      {segments.length?<div className="cap-bar-wrap">
+        <div className="cap-bar" role="img" aria-label="Share of the vouch pool by owner">
+          {segments.map(segment=><div key={segment.key} className={`cap-segment ${capHighlightKey&&segment.key===capHighlightKey?'is-you':''}`} style={{width:`${Math.max(segment.share*100,1)}%`,background:segment.color}}>
+            {segment.share>=0.1&&!segment.isOthers&&<span>{segment.label} {pct(segment.share,1)}</span>}
+            {segment.isOthers&&<span className="others">{segment.label} — {pct(segment.share,1)}</span>}
+          </div>)}
+        </div>
+        {tail&&<p className="cap-bar-note"><i style={{background:tail.color}} aria-hidden="true"/>{tail.label} — {pct(tail.share,1)}</p>}
       </div>:<div className="cap-empty"><b>THE FIRST VOUCH OWNS 100%</b><span>Every later vouch dilutes all holders pro rata.</span></div>}
       {owners.length>0&&<div className="cap-list">
         <div className="cap-list-head"><span>NO.</span><span>OWNER</span><span>POINTS</span><span>SHARE OF POOL</span><span>SHARE</span></div>
